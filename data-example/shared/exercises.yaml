@@ -1,0 +1,38 @@
+# Canonical exercise library. primary/secondary must be one of:
+# chest back shoulders biceps triceps quads hamstrings glutes calves core
+- id: chest_press_db_incline
+  name: Chest Press, Incline, DB
+  equipment: dumbbell
+  primary: chest
+  secondary: [triceps, shoulders]
+  default_rest_s: 120
+- id: goblet_squat_db
+  name: Goblet Squat, DB
+  equipment: dumbbell
+  primary: quads
+  secondary: [glutes, core]
+  default_rest_s: 150
+- id: row_1arm_db
+  name: One-Arm Row, DB
+  equipment: dumbbell
+  primary: back
+  secondary: [biceps]
+  default_rest_s: 90
+- id: lateral_raise_db
+  name: Lateral Raise, DB
+  equipment: dumbbell
+  primary: shoulders
+  default_rest_s: 60
+- id: pullup
+  name: Pull-Up
+  equipment: bodyweight
+  primary: back
+  secondary: [biceps, core]
+  bodyweight: true
+  default_rest_s: 150
+- id: rdl_db
+  name: Romanian Deadlift, DB
+  equipment: dumbbell
+  primary: hamstrings
+  secondary: [glutes, back]
+  default_rest_s: 150

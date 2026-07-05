@@ -1,0 +1,24 @@
+{"id": "s1", "ts": "2026-06-02T09:00:00-04:00", "type": "session_start", "session_id": "sess1", "name": "Push Day", "template": "push_day"}
+{"id": "e10", "ts": "2026-06-02T09:03:00-04:00", "type": "set", "session_id": "sess1", "exercise_id": "chest_press_db_incline", "weight_kg": 40.8, "reps": 12, "rpe": 7}
+{"id": "e11", "ts": "2026-06-02T09:06:00-04:00", "type": "set", "session_id": "sess1", "exercise_id": "chest_press_db_incline", "weight_kg": 40.8, "reps": 11, "rpe": 8}
+{"id": "e12", "ts": "2026-06-02T09:09:00-04:00", "type": "set", "session_id": "sess1", "exercise_id": "chest_press_db_incline", "weight_kg": 40.8, "reps": 10, "rpe": 9}
+{"id": "e13", "ts": "2026-06-02T09:12:00-04:00", "type": "set", "session_id": "sess1", "exercise_id": "lateral_raise_db", "weight_kg": 9.1, "reps": 12}
+{"id": "e14", "ts": "2026-06-02T09:15:00-04:00", "type": "set", "session_id": "sess1", "exercise_id": "pullup", "reps": 8, "rpe": 8, "added_weight_kg": 0.0}
+{"id": "e15", "ts": "2026-06-02T09:18:00-04:00", "type": "set", "session_id": "sess1", "exercise_id": "lateral_raise_db", "weight_kg": 9.1, "reps": 12}
+{"id": "e16", "ts": "2026-06-02T09:21:00-04:00", "type": "set", "session_id": "sess1", "exercise_id": "pullup", "reps": 7, "rpe": 9, "added_weight_kg": 0.0}
+{"id": "x1", "ts": "2026-06-02T09:24:00-04:00", "type": "session_end", "session_id": "sess1"}
+{"id": "s2", "ts": "2026-06-09T09:00:00-04:00", "type": "session_start", "session_id": "sess2", "name": "Push Day", "template": "push_day"}
+{"id": "e20", "ts": "2026-06-09T09:03:00-04:00", "type": "set", "session_id": "sess2", "exercise_id": "chest_press_db_incline", "weight_kg": 43.1, "reps": 11, "rpe": 8}
+{"id": "e21", "ts": "2026-06-09T09:06:00-04:00", "type": "set", "session_id": "sess2", "exercise_id": "chest_press_db_incline", "weight_kg": 43.1, "reps": 10, "rpe": 9}
+{"id": "e22", "ts": "2026-06-09T09:09:00-04:00", "type": "set", "session_id": "sess2", "exercise_id": "goblet_squat_db", "weight_kg": 24.0, "reps": 15, "rpe": 7}
+{"id": "e23", "ts": "2026-06-09T09:12:00-04:00", "type": "set", "session_id": "sess2", "exercise_id": "rdl_db", "weight_kg": 36.3, "reps": 10, "rpe": 7}
+{"id": "e24", "ts": "2026-06-09T09:15:00-04:00", "type": "set", "session_id": "sess2", "exercise_id": "row_1arm_db", "weight_kg": 27.2, "reps": 12, "rpe": 8}
+{"id": "x2", "ts": "2026-06-09T09:18:00-04:00", "type": "session_end", "session_id": "sess2"}
+{"id": "s3", "ts": "2026-06-16T09:00:00-04:00", "type": "session_start", "session_id": "sess3", "name": "Push Day", "template": "push_day"}
+{"id": "e30", "ts": "2026-06-16T09:03:00-04:00", "type": "set", "session_id": "sess3", "exercise_id": "chest_press_db_incline", "weight_kg": 45.4, "reps": 12, "rpe": 8}
+{"id": "e31", "ts": "2026-06-16T09:06:00-04:00", "type": "set", "session_id": "sess3", "exercise_id": "chest_press_db_incline", "weight_kg": 45.4, "reps": 10, "rpe": 9}
+{"id": "e32", "ts": "2026-06-16T09:09:00-04:00", "type": "set", "session_id": "sess3", "exercise_id": "lateral_raise_db", "weight_kg": 10.2, "reps": 12}
+{"id": "e33", "ts": "2026-06-16T09:12:00-04:00", "type": "set", "session_id": "sess3", "exercise_id": "pullup", "reps": 9, "rpe": 8, "added_weight_kg": 0.0}
+{"id": "e34", "ts": "2026-06-16T09:15:00-04:00", "type": "set", "session_id": "sess3", "exercise_id": "goblet_squat_db", "weight_kg": 26.0, "reps": 12, "rpe": 8}
+{"id": "x3", "ts": "2026-06-16T09:18:00-04:00", "type": "session_end", "session_id": "sess3"}
+{"id": "c1", "ts": "2026-06-20T07:30:00-04:00", "type": "cardio", "session_id": "sessc1", "activity": "run", "duration_s": 1860, "distance_km": 5.0, "avg_hr": 152, "notes": "easy zone 2"}

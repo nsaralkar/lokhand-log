@@ -1,0 +1,11 @@
+name: Push Day
+blocks:
+  - type: straight
+    exercise: chest_press_db_incline
+    sets: 3
+    target_reps: 10
+  - type: superset
+    label: shoulder finisher
+    rounds: 3
+    exercises: [lateral_raise_db, pullup]
+    target_reps: 12

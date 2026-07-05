@@ -1,0 +1,15 @@
+# Single origin on :80 (mapped to 8080): PWA + /api + /mcp.
+# For HTTPS on LAN/Tailscale see docs/DEPLOY.md.
+:80 {
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+	handle /mcp* {
+		reverse_proxy mcp:8765
+	}
+	handle {
+		root * /srv/www
+		try_files {path} /index.html
+		file_server
+	}
+}
