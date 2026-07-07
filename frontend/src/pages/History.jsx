@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { get, patch, del, toDisplay, fromDisplay, unitLabel, fmtDuration } from '../api'
+import Confirm from '../components/Confirm'
 
-export default function History({ user }) {
+export default function History({ user, openSession: deepLink, onOpened, menuBtn }) {
   const units = user.units
   const [sessions, setSessions] = useState([])
   const [open, setOpen] = useState(null)      // session summary
   const [editing, setEditing] = useState(null) // entry being edited
+  const [confirmId, setConfirmId] = useState(null) // entry pending delete
   const [exercises, setExercises] = useState({})
 
   const load = () => get('/sessions').then(setSessions)
@@ -13,6 +15,11 @@ export default function History({ user }) {
     load()
     get('/exercises').then((xs) => setExercises(Object.fromEntries(xs.map((x) => [x.id, x]))))
   }, [])
+
+  // Deep-link from another tab (e.g. tapping a date in the workout view).
+  useEffect(() => {
+    if (deepLink) { openSession(deepLink); onOpened?.() }
+  }, [deepLink])
 
   async function openSession(sid) {
     setOpen(await get(`/sessions/${sid}`))
@@ -28,8 +35,8 @@ export default function History({ user }) {
   }
 
   async function remove(id) {
-    if (!confirm('Delete this entry? (git history keeps the audit trail)')) return
     await del(`/entries/${id}`)
+    setConfirmId(null)
     openSession(open.session_id)
   }
 
@@ -37,7 +44,10 @@ export default function History({ user }) {
     const sets = open.entries.filter((e) => e.type === 'set' || e.type === 'cardio')
     return (
       <>
-        <button className="ghost" onClick={() => { setOpen(null); load() }}>← Sessions</button>
+        <div className="pagehead">
+          {menuBtn}
+          <button className="ghost" onClick={() => { setOpen(null); load() }}>← Sessions</button>
+        </div>
         <h1>{open.entries[0]?.ts?.slice(0, 10)}</h1>
         <p className="muted">
           {fmtDuration(open.duration_s)} · {toDisplay(open.tonnage_kg, units)} {unitLabel(units)} total
@@ -74,7 +84,7 @@ export default function History({ user }) {
                       <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
                         onClick={() => setEditing({ id: e.id, reps: e.reps, weight: toDisplay(e.weight_kg, units) })}>✎</button>
                       <button className="ghost danger" style={{ minHeight: 40, padding: '0 10px' }}
-                        onClick={() => remove(e.id)}>✕</button>
+                        onClick={() => setConfirmId(e.id)}>✕</button>
                     </>
                   )}
                 </div>
@@ -82,13 +92,16 @@ export default function History({ user }) {
             </div>
           ))}
         </div>
+        <Confirm open={confirmId != null}
+          message="Delete this entry? git history keeps the audit trail."
+          onConfirm={() => remove(confirmId)} onCancel={() => setConfirmId(null)} />
       </>
     )
   }
 
   return (
     <>
-      <h1>History</h1>
+      <div className="pagehead">{menuBtn}<h1>History</h1></div>
       {sessions.map((s) => (
         <div className="card" key={s.session_id} onClick={() => openSession(s.session_id)}
           style={{ cursor: 'pointer' }}>

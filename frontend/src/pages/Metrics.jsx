@@ -17,7 +17,7 @@ const METRICS = [
   { id: 'hips', name: 'Hips', unit: 'cm' },
 ]
 
-export default function Metrics({ user }) {
+export default function Metrics({ user, menuBtn }) {
   const units = user.units
   const [metric, setMetric] = useState(METRICS[0])
   const [value, setValue] = useState('')
@@ -42,7 +42,7 @@ export default function Metrics({ user }) {
 
   return (
     <>
-      <h1>Body</h1>
+      <div className="pagehead">{menuBtn}<h1>Body</h1></div>
       <div className="card">
         <label>Metric</label>
         <select value={metric.id}

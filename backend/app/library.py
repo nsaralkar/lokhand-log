@@ -1,6 +1,7 @@
 """Shared exercise library (data-repo YAML) and per-user workout templates."""
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
@@ -10,24 +11,44 @@ from .models import Exercise
 
 
 def load_exercises() -> dict[str, Exercise]:
+    """Parse the shared library, a mapping of exercise id -> attributes. A YAML
+    *syntax* error propagates (the caller surfaces it so a bad hand-edit is
+    visible, not a silent empty list); a single entry that fails schema
+    validation is skipped so it can't hide the rest."""
     path = config.exercises_file()
-    raw = yaml.safe_load(path.read_text()) if path.exists() else []
+    raw = yaml.safe_load(path.read_text()) if path.exists() else {}
     out: dict[str, Exercise] = {}
-    for item in raw or []:
-        ex = Exercise.model_validate(item)
+    for id_, item in (raw or {}).items():
+        try:
+            ex = Exercise.model_validate({**(item or {}), "id": id_})
+        except Exception:
+            continue
         out[ex.id] = ex
     return out
 
 
+def _slugify(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+    return slug or "exercise"
+
+
 def add_exercise(ex: Exercise) -> Exercise:
+    """Persist a new exercise. If its id is blank, derive a unique slug from the
+    name (frontend-created exercises don't supply an id)."""
     exercises = load_exercises()
+    if not ex.id:
+        base = _slugify(ex.name)
+        slug, n = base, 2
+        while slug in exercises:
+            slug, n = f"{base}_{n}", n + 1
+        ex = ex.model_copy(update={"id": slug})
     if ex.id in exercises:
         raise ValueError(f"exercise id exists: {ex.id}")
     exercises[ex.id] = ex
     path = config.exercises_file()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(
-        [e.model_dump(exclude_none=True) for e in exercises.values()],
+        {e.id: e.model_dump(exclude_none=True, exclude={"id"}) for e in exercises.values()},
         sort_keys=False, allow_unicode=True))
     from .storage import git_commit
     git_commit(f"library: add exercise {ex.id}")

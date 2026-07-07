@@ -95,7 +95,7 @@ def parse_entry(d: dict):
 
 
 class Exercise(BaseModel):
-    id: str
+    id: str = ""                            # blank on create; backend assigns a slug
     name: str
     equipment: Optional[str] = None        # barbell | dumbbell | cable | machine | bodyweight
     primary: str

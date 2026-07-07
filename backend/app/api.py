@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
+import yaml
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
@@ -49,7 +50,10 @@ def me(user=Depends(current_user)):
 
 @router.get("/exercises")
 def exercises(user=Depends(current_user)):
-    return [e.model_dump() for e in load_exercises().values()]
+    try:
+        return [e.model_dump() for e in load_exercises().values()]
+    except yaml.YAMLError as e:
+        raise HTTPException(500, f"exercises.yaml parse error: {e}")
 
 
 @router.post("/exercises")

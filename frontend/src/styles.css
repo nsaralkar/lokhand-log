@@ -19,7 +19,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); }
 body { font-size: 16px; -webkit-tap-highlight-color: transparent; }
-#root { max-width: 640px; margin: 0 auto; padding: 12px 12px calc(76px + env(safe-area-inset-bottom)); }
+#root { max-width: 640px; margin: 0 auto; padding: calc(8px + env(safe-area-inset-top)) 12px 24px; }
 
 h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: 0.02em; }
 h1 { font-size: 28px; font-weight: 700; text-transform: uppercase; margin: 8px 0; }
@@ -48,46 +48,109 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
 label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 0.05em; }
 
-/* Stepper: the primary mid-set input. Value in big condensed numerals. */
-.stepper { display: flex; align-items: stretch; gap: 8px; }
-.stepper button { width: 56px; min-height: 56px; font-size: 24px; flex: 0 0 auto; }
-.stepper .value {
+/* Rest timer — replaces the Log-set button while resting: −30 / clock / +30 / ✕ */
+.logtimer { display: flex; align-items: stretch; gap: 8px; margin-top: 12px; height: 60px; }
+.logtimer .logtimer-clock {
   flex: 1; display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-display); font-size: 40px; font-weight: 700;
+  font-family: var(--font-display); font-size: 40px; font-weight: 700; line-height: 1;
+  color: var(--accent); font-variant-numeric: tabular-nums;
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
 }
-.stepper .value input {
-  font-family: var(--font-display); font-size: 40px; font-weight: 700; text-align: center;
-  background: transparent; border: none; min-height: 0; padding: 0; width: 100%;
-}
-.stepper .value input:focus { outline: none; }
-
-/* Rest timer — the signature element. Fills the fold between sets. */
-.timer { text-align: center; padding: 10px 0 4px; }
-.timer .clock { font-family: var(--font-display); font-size: 96px; font-weight: 700; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
-.timer .clock.over { color: var(--danger); }
-.timer .sub { color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; }
-.timer .controls { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+.logtimer .logtimer-clock.over { color: var(--danger); border-color: var(--danger); }
+.logtimer .adj { flex: 0 0 auto; min-width: 54px; padding: 0; font-family: var(--font-display); font-size: 18px; }
+.logtimer .adj.skip { color: var(--danger); border-color: var(--danger); }
 
 .row { display: flex; gap: 8px; }
 .row > * { flex: 1; }
 
-.rpe-row { display: flex; gap: 6px; }
-.rpe-row button { flex: 1; min-width: 0; padding: 0; min-height: 44px; font-family: var(--font-display); font-size: 18px; }
-.rpe-row button.on { background: var(--accent); color: #14171c; border-color: var(--accent); }
-
-/* Bottom tab bar */
-nav.tabs {
-  position: fixed; bottom: 0; left: 0; right: 0; display: flex;
-  background: var(--surface); border-top: 1px solid var(--line);
-  padding-bottom: env(safe-area-inset-bottom); max-width: 640px; margin: 0 auto;
+/* Weight/reps: plain big-numeral inputs (no steppers) with an inline grey label */
+.fields { display: flex; gap: 10px; margin-top: 16px; }
+.fields .field { flex: 1; min-width: 0; }
+.field {
+  display: flex; align-items: baseline; gap: 6px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 6px 10px 8px; background: var(--surface-2);
 }
-nav.tabs button { flex: 1; border: none; border-radius: 0; background: none; min-height: 56px; font-size: 13px; color: var(--muted); text-transform: uppercase; font-family: var(--font-display); letter-spacing: 0.06em; }
-nav.tabs button.on { color: var(--accent); }
+.field .numval {
+  flex: 1; min-width: 0; border: none; background: transparent; padding: 0; min-height: 48px;
+  font-family: var(--font-display); font-size: 40px; font-weight: 700; text-align: left;
+}
+.field .numval:focus { outline: none; }
+.field .unit { color: var(--muted); font-size: 14px; flex: 0 0 auto; }
+
+/* Workout plan rows (shown as "Up next" inside the This-session box) */
+.plan-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  padding: 7px 0 7px 10px; border-left: 3px solid transparent; }
+.plan-row .plan-ex { font-weight: 500; font-size: 14px; }
+.plan-row .muted { font-size: 12px; white-space: nowrap; }
+.plan-row.done { opacity: 0.45; }
+.plan-row.done .plan-ex { text-decoration: line-through; }
+.plan-row.current { border-left-color: var(--accent); }
+.plan-row.current .plan-ex { color: var(--accent); }
+
+/* "Up next" divider inside the This-session box (plan integrated here) */
+.session-subhead { color: var(--muted); font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.06em; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+
+/* Exercise picker: text field with a small + button to its right */
+.ex-picker { display: flex; gap: 8px; }
+.ex-picker input { flex: 1; }
+.addex { flex: 0 0 auto; width: 48px; min-height: 48px; padding: 0; font-size: 26px; line-height: 1;
+  background: var(--surface-2); }
+
+/* In-card subtabs (per-exercise History / Trend) */
+.subtabs { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--line);
+  margin-bottom: 10px; }
+.subtabs button { min-height: 40px; border: none; border-radius: 0; background: none;
+  color: var(--muted); padding: 0 4px 8px; font-family: var(--font-display);
+  text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid transparent; }
+.subtabs button.on { color: var(--ink); border-bottom-color: var(--accent); }
+
+/* Tappable date that deep-links into a past workout */
+.linkdate { background: none; border: none; padding: 0; min-height: 0; font-weight: 500;
+  color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.linkdate:active { color: var(--accent); }
+
+/* Confirmation modal */
+.modal-scrim { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { max-width: 360px; width: 100%; margin: 0; }
+.modal .row button { min-height: 52px; }
+
+/* Hamburger drawer trigger — rendered inline by each page (no separate top bar) */
+.hamburger {
+  flex: 0 0 auto; min-height: 44px; width: 40px; padding: 0; font-size: 22px; line-height: 1;
+  background: none; border: none; color: var(--ink);
+}
+/* Page header row: hamburger beside the title / back button */
+.pagehead { display: flex; align-items: center; gap: 4px; }
+.pagehead h1 { margin: 0; }
+/* On the workout card the hamburger shares the subtabs line; nudge it to the baseline */
+.subtabs .hamburger { min-height: 40px; width: 34px; margin-left: -6px; padding-bottom: 8px; }
+
+/* Left slide-in drawer nav */
+.scrim { position: fixed; inset: 0; z-index: 35; background: rgba(0, 0, 0, 0.5); }
+nav.drawer {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 40; width: 240px; max-width: 82vw;
+  display: flex; flex-direction: column; gap: 4px; padding: 12px;
+  padding-top: calc(12px + env(safe-area-inset-top));
+  background: var(--surface); border-right: 1px solid var(--line);
+  transform: translateX(-100%); transition: transform 0.2s ease;
+}
+nav.drawer.open { transform: translateX(0); }
+.drawer-head { font-family: var(--font-display); text-transform: uppercase; font-size: 22px; font-weight: 700; letter-spacing: 0.04em; margin: 6px 8px 14px; }
+nav.drawer button {
+  text-align: left; border: none; border-radius: var(--radius); background: none;
+  min-height: 52px; font-size: 16px; color: var(--muted);
+  text-transform: uppercase; font-family: var(--font-display); letter-spacing: 0.06em;
+}
+nav.drawer button.on { color: var(--accent); background: var(--surface-2); }
+@media (prefers-reduced-motion: reduce) { nav.drawer { transition: none; } }
 
 .entry { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); gap: 8px; }
 .entry:last-child { border-bottom: none; }
 .entry .main { font-weight: 500; }
+.entry .main.exname { font-size: 14px; }   /* compact exercise names in This session */
 .entry .meta { color: var(--muted); font-size: 13px; }
 .entry .load { font-family: var(--font-display); font-size: 22px; font-weight: 600; white-space: nowrap; }
 

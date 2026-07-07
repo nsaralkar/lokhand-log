@@ -8,7 +8,7 @@ import { get, toDisplay, unitLabel, MUSCLE_COLORS } from '../api'
 const axis = { stroke: '#7e8894', fontSize: 12 }
 const tip = { contentStyle: { background: '#1d222a', border: '1px solid #313a46', borderRadius: 8, color: '#edeff2' } }
 
-export default function Trends({ user }) {
+export default function Trends({ user, menuBtn }) {
   const units = user.units
   const [volume, setVolume] = useState([])
   const [muscle, setMuscle] = useState({ muscle_groups: [], data: [] })
@@ -38,7 +38,7 @@ export default function Trends({ user }) {
 
   return (
     <>
-      <h1>Trends</h1>
+      <div className="pagehead">{menuBtn}<h1>Trends</h1></div>
 
       <h2>Weekly volume ({unitLabel(units)})</h2>
       <div className="card" style={{ height: 220 }}>

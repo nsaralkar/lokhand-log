@@ -19,6 +19,7 @@ export default defineConfig({
     })
   ],
   server: {
-    proxy: { '/api': 'http://localhost:8000' }
+    // Override to point a dev/screenshot frontend at a throwaway backend.
+    proxy: { '/api': process.env.VITE_API_TARGET || 'http://localhost:8000' }
   }
 })

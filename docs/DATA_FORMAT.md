@@ -51,9 +51,23 @@ wearable-derived metrics like `resting_hr`) are new names, not schema changes.
 
 ## Exercise library (`shared/exercises.yaml`)
 
-Canonical ids prevent the "DB Incline Press" vs "Chest Press, Incline, DB"
-history-fragmentation problem. `primary`/`secondary` must come from the fixed
-muscle-group taxonomy (see `backend/app/config.py`).
+A mapping of exercise id -> attributes. Canonical ids prevent the "DB Incline
+Press" vs "Chest Press, Incline, DB" history-fragmentation problem, and keying
+by id makes uniqueness structural. `primary`/`secondary` must come from the
+fixed muscle-group taxonomy (see `backend/app/config.py`).
+
+```yaml
+chest_press_db_incline:
+  name: Chest Press, Incline, DB
+  equipment: dumbbell        # barbell | dumbbell | cable | machine | bodyweight
+  primary: chest
+  secondary: [triceps, shoulders]
+  bodyweight: false          # true = load is body weight ± added/assist
+  default_rest_s: 120
+```
+
+Set and cardio entries reference an exercise by its id (the `exercise_id`
+field); templates reference it too. Those are the map keys here.
 
 ## Templates (`users/<name>/templates/*.yaml`)
 
