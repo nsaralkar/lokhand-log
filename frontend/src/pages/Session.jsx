@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts'
-import { get, post, patch, del, toDisplay, fromDisplay, unitLabel } from '../api'
+import { get, post, patch, del, WEIGHT_UNIT } from '../api'
 import { unlockAudio, beep } from '../audio'
 import Confirm from '../components/Confirm'
 
@@ -11,29 +11,30 @@ const MUSCLE_GROUPS = ['chest', 'back', 'shoulders', 'biceps', 'triceps',
 // Active workout is persisted here so switching tabs (which unmounts this page)
 // and coming back resumes exactly where you left off.
 const RESUME_KEY = 'ironlog.active'
-const axis = { stroke: '#7e8894', fontSize: 12 }
-const tip = { contentStyle: { background: '#1d222a', border: '1px solid #313a46', borderRadius: 8, color: '#edeff2' } }
+const axis = { stroke: '#8a94a2', fontSize: 12 }
+const tip = { contentStyle: { background: '#262c36', border: '1px solid #3d4653', borderRadius: 8, color: '#edeff2' } }
 
 export default function Session({ user, navigate, menuBtn }) {
-  const units = user.units
   const [exercises, setExercises] = useState([])
   const [exErr, setExErr] = useState('')
-  const [templates, setTemplates] = useState({})
+  const [routines, setRoutines] = useState({})
   const [session, setSession] = useState(null) // {session_id, plan, planIdx}
   const [exText, setExText] = useState('')     // exercise picker text (name)
-  const [weight, setWeight] = useState(null)   // display units
+  const [weight, setWeight] = useState(null)   // pounds
   const [reps, setReps] = useState(10)
   const [rpe, setRpe] = useState(null)
   const [notes, setNotes] = useState('')
   const [timer, setTimer] = useState(null)     // {target, startedAt}
   const [now, setNow] = useState(0)            // ticks while the rest timer runs
   const [prog, setProg] = useState([])         // full progression for current exercise
-  const [exTab, setExTab] = useState('exercise') // 'exercise' | 'history' | 'trend'
+  const [exTab, setExTab] = useState('exercise') // 'exercise' | 'history' | 'trend' | 'info'
   const [logged, setLogged] = useState([])
   const [editId, setEditId] = useState(null)   // logged set being edited
   const [editVal, setEditVal] = useState({ weight: '', reps: '' })
   const [adding, setAdding] = useState(false)  // add-exercise form open
   const [confirmId, setConfirmId] = useState(null) // set pending delete
+  const [planOpen, setPlanOpen] = useState(false)  // Up-next expanded vs. next-only
+  const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned
   const [err, setErr] = useState('')
   const wakeLock = useRef(null)
   const hydrated = useRef(false)
@@ -46,7 +47,7 @@ export default function Session({ user, navigate, menuBtn }) {
 
   useEffect(() => {
     loadExercises()
-    get('/templates').then(setTemplates)
+    get('/routines').then(setRoutines)
   }, [])
 
   const nameOf = (id) => exercises.find((e) => e.id === id)?.name || id
@@ -69,6 +70,7 @@ export default function Session({ user, navigate, menuBtn }) {
 
   // Persist active-workout state so it survives an unmount. `weight`/`reps` are
   // kept too — the previous set stays in the entry area, so a repeat is one tap.
+  // `session` carries the plan, so on-the-fly Up-next swaps survive too.
   useEffect(() => {
     if (!hydrated.current) return
     if (session) {
@@ -88,6 +90,7 @@ export default function Session({ user, navigate, menuBtn }) {
 
   // Progression for the selected exercise — feeds the History/Trend subtabs and
   // prefills the entry with the last set's values when you switch exercises.
+  // We populate the last set verbatim (never auto-increment the weight).
   useEffect(() => {
     setProg([])
     if (!exerciseId) return
@@ -96,7 +99,7 @@ export default function Session({ user, navigate, menuBtn }) {
         setProg(p.sessions)
         const last = p.sessions.at(-1)?.sets.at(-1)
         if (autoPop.current && last) {
-          if (!isBw) setWeight(toDisplay(last.load_kg, units))  // load_kg == weight for non-bw
+          if (!isBw) setWeight(last.load_lb)  // load_lb == weight for non-bw
           setReps(last.reps)
         }
         autoPop.current = true
@@ -106,8 +109,8 @@ export default function Session({ user, navigate, menuBtn }) {
 
   const history = useMemo(() => prog.slice(-3).reverse(), [prog])
   const trend = useMemo(
-    () => prog.map((s) => ({ date: s.date, e1rm: toDisplay(s.e1rm_kg, units) })),
-    [prog, units])
+    () => prog.map((s) => ({ date: s.date, e1rm: s.e1rm_lb })),
+    [prog])
 
   // Keep the screen awake mid-session so the rest timer stays visible.
   useEffect(() => {
@@ -126,11 +129,10 @@ export default function Session({ user, navigate, menuBtn }) {
     return () => clearInterval(id)
   }, [timer])
 
-  async function start(template) {
-    const r = await post('/sessions/start', {
-      name: template ? templates[template].name : null, template })
+  async function start(routine, day) {
+    const r = await post('/sessions/start', { routine, day })
     setSession({ session_id: r.session_id, plan: r.plan, planIdx: 0 })
-    setLogged([]); setExTab('exercise')
+    setLogged([]); setExTab('exercise'); setPlanOpen(false); setSwapIdx(null)
     if (r.plan?.length) setExText(nameOf(r.plan[0].exercise_id))
   }
 
@@ -158,8 +160,8 @@ export default function Session({ user, navigate, menuBtn }) {
         session_id: session.session_id, exercise_id: exerciseId, reps,
         rpe: rpe || undefined, notes: notes || undefined,
       }
-      if (isBw) body.added_weight_kg = fromDisplay(weight, units) ?? 0
-      else body.weight_kg = fromDisplay(weight, units)
+      if (isBw) body.added_weight_lb = weight ?? 0
+      else body.weight_lb = weight
       const r = await post('/sets', body)
       setLogged((l) => [{ ...body, id: r.id, name: exercise?.name, bodyweight: isBw }, ...l])
       setTimer({ target: r.rest_s, startedAt: Date.now() })
@@ -173,19 +175,25 @@ export default function Session({ user, navigate, menuBtn }) {
     } catch (e) { setErr(e.message) }
   }
 
+  // Substitute a different exercise into an upcoming planned set. This edits the
+  // in-session plan only (state + resume storage) — the routine YAML is untouched.
+  function applySwap(idx, name) {
+    const ex = exercises.find((e) => e.name === name)
+    setSwapIdx(null)
+    if (ex) setSession((s) => ({ ...s,
+      plan: s.plan.map((row, i) => i === idx ? { ...row, exercise_id: ex.id } : row) }))
+  }
+
   function startEdit(l) {
     setEditId(l.id)
-    setEditVal({
-      weight: toDisplay(l.weight_kg ?? l.added_weight_kg, units) ?? '',
-      reps: l.reps,
-    })
+    setEditVal({ weight: l.weight_lb ?? l.added_weight_lb ?? '', reps: l.reps })
   }
 
   async function saveEdit(l) {
     const p = { reps: Number(editVal.reps) }
-    const w = editVal.weight === '' ? null : fromDisplay(Number(editVal.weight), units)
-    if (l.bodyweight) p.added_weight_kg = w ?? 0
-    else p.weight_kg = w
+    const w = editVal.weight === '' ? null : Number(editVal.weight)
+    if (l.bodyweight) p.added_weight_lb = w ?? 0
+    else p.weight_lb = w
     try {
       await patch(`/entries/${l.id}`, p)
       setLogged((rows) => rows.map((r) => r.id === l.id ? { ...r, ...p } : r))
@@ -208,20 +216,28 @@ export default function Session({ user, navigate, menuBtn }) {
   }
 
   if (!session) {
+    const routineList = Object.entries(routines)
     return (
       <>
         <div className="pagehead">{menuBtn}<h1>Iron Log</h1></div>
         <div className="card">
-          <button className="big primary" onClick={() => start(null)}>Start empty workout</button>
+          <button className="big primary" onClick={() => start()}>Start empty workout</button>
         </div>
-        <h2>From template</h2>
-        {Object.entries(templates).map(([slug, t]) => (
-          <div className="card" key={slug}>
-            <button className="big" onClick={() => start(slug)}>{t.name || slug}</button>
+        {routineList.map(([slug, r]) => (
+          <div key={slug}>
+            <h2>{r.name || slug}</h2>
+            <div className="card">
+              {(r.days || []).map((d, i) => (
+                <button className="big" key={d.name || i}
+                  style={{ marginBottom: i < r.days.length - 1 ? 8 : 0 }}
+                  onClick={() => start(slug, d.name)}>{d.name || `Day ${i + 1}`}</button>
+              ))}
+              {!(r.days || []).length && <p className="muted">No days defined in this routine.</p>}
+            </div>
           </div>
         ))}
-        {!Object.keys(templates).length && (
-          <p className="muted">No templates yet. Save one from a finished session in History, or drop a YAML in your data repo.</p>
+        {!routineList.length && (
+          <p className="muted">No routines yet. Drop a routine YAML in your data repo's <code>shared/routines/</code>.</p>
         )}
       </>
     )
@@ -229,6 +245,7 @@ export default function Session({ user, navigate, menuBtn }) {
 
   const plan = session.plan || []
   const upcoming = plan.slice(session.planIdx)
+  const shownUpcoming = planOpen ? upcoming : upcoming.slice(0, 1)
   // Rest countdown derived from the timer + tick.
   const remaining = timer ? timer.target - Math.floor((now - timer.startedAt) / 1000) : 0
   const cAbs = Math.abs(remaining)
@@ -243,13 +260,14 @@ export default function Session({ user, navigate, menuBtn }) {
           <button className={exTab === 'exercise' ? 'on' : ''} onClick={() => setExTab('exercise')}>Exercise</button>
           <button className={exTab === 'history' ? 'on' : ''} onClick={() => setExTab('history')}>History</button>
           <button className={exTab === 'trend' ? 'on' : ''} onClick={() => setExTab('trend')}>Trend</button>
+          <button className={exTab === 'info' ? 'on' : ''} onClick={() => setExTab('info')}>Info</button>
         </div>
 
         {exTab === 'exercise' && (
           <>
             {exErr && <p className="error">{exErr}</p>}
             <div className="ex-picker">
-              <input list="exlist" value={exText} onFocus={(e) => e.target.select()}
+              <input list="exlist" value={exText}
                 onChange={(e) => setExText(e.target.value)} placeholder="start typing…" />
               <button className="addex" aria-label={adding ? 'Cancel new exercise' : 'New exercise'}
                 onClick={() => { setErr(''); setAdding((v) => !v) }}>{adding ? '×' : '+'}</button>
@@ -261,12 +279,12 @@ export default function Session({ user, navigate, menuBtn }) {
 
             <div className="fields">
               <div className="field">
-                <input className="numval" inputMode="decimal" value={weight ?? ''} onFocus={(e) => e.target.select()}
+                <input className="numval" inputMode="decimal" value={weight ?? ''}
                   onChange={(e) => setWeight(e.target.value === '' ? null : Number(e.target.value))} />
-                <span className="unit">{unitLabel(units)}</span>
+                <span className="unit">{WEIGHT_UNIT}</span>
               </div>
               <div className="field">
-                <input className="numval" inputMode="numeric" value={reps ?? ''} onFocus={(e) => e.target.select()}
+                <input className="numval" inputMode="numeric" value={reps ?? ''}
                   onChange={(e) => setReps(e.target.value === '' ? null : Number(e.target.value))} />
                 <span className="unit">reps</span>
               </div>
@@ -315,10 +333,10 @@ export default function Session({ user, navigate, menuBtn }) {
                       {s.date}
                     </button>
                     <div className="meta">
-                      {s.sets.map((x) => `${toDisplay(x.load_kg, units)}×${x.reps}`).join('  ')}
+                      {s.sets.map((x) => `${x.load_lb}×${x.reps}`).join('  ')}
                     </div>
                   </div>
-                  <div className="load">{toDisplay(s.e1rm_kg, units)} <span className="pill">e1RM</span></div>
+                  <div className="load">{s.e1rm_lb} <span className="pill">e1RM</span></div>
                 </div>
               ))
         )}
@@ -340,9 +358,51 @@ export default function Session({ user, navigate, menuBtn }) {
               )
               : <p className="muted">Not enough sessions to chart yet.</p>
         )}
+
+        {exTab === 'info' && (
+          !exerciseId
+            ? <p className="muted">Pick an exercise on the Exercise tab to see its notes.</p>
+            : exercise?.notes
+              ? <p className="exnotes">{exercise.notes}</p>
+              : <p className="muted">No notes for {exercise?.name}. Add a <code>notes:</code> key in exercises.yaml.</p>
+        )}
       </div>
 
-      {(logged.length > 0 || plan.length > 0) && (
+      {upcoming.length > 0 && (
+        <div className="card">
+          <div className="upnext-head">
+            <span>Up next</span>
+            {upcoming.length > 1 && (
+              <button className="toggle" onClick={() => { setPlanOpen((o) => !o); setSwapIdx(null) }}>
+                {planOpen ? 'Collapse' : `+${upcoming.length - 1} more`}
+              </button>
+            )}
+          </div>
+          {shownUpcoming.map((p, i) => {
+            const idx = session.planIdx + i
+            return (
+              <div className={`plan-row ${i === 0 ? 'current' : ''}`} key={`up-${idx}`}>
+                {swapIdx === idx ? (
+                  <div className="plan-swap">
+                    <input list="exlist" autoFocus defaultValue={nameOf(p.exercise_id)}
+                      placeholder="swap in an exercise…"
+                      onBlur={(e) => applySwap(idx, e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') applySwap(idx, e.target.value) }} />
+                  </div>
+                ) : (
+                  <button className="plan-ex tap" onClick={() => setSwapIdx(idx)}>{nameOf(p.exercise_id)}</button>
+                )}
+                <span className="muted">
+                  {p.block ? `${p.block} · ` : ''}round {p.round}
+                  {p.target_reps ? ` · ${p.target_reps} reps` : ''}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {logged.length > 0 && (
         <div className="card">
           <h2 style={{ marginTop: 0 }}>This session</h2>
           {logged.map((l) => (
@@ -350,7 +410,7 @@ export default function Session({ user, navigate, menuBtn }) {
               <div className="main exname">{l.name || l.exercise_id}</div>
               {editId === l.id ? (
                 <div className="row" style={{ maxWidth: 240 }}>
-                  <input inputMode="decimal" value={editVal.weight} placeholder={unitLabel(units)}
+                  <input inputMode="decimal" value={editVal.weight} placeholder={WEIGHT_UNIT}
                     onChange={(e) => setEditVal({ ...editVal, weight: e.target.value })} />
                   <input inputMode="numeric" value={editVal.reps}
                     onChange={(e) => setEditVal({ ...editVal, reps: e.target.value })} />
@@ -359,7 +419,7 @@ export default function Session({ user, navigate, menuBtn }) {
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div className="load">
-                    {toDisplay(l.weight_kg ?? l.added_weight_kg, units) ?? 'bw'}×{l.reps}
+                    {(l.weight_lb ?? l.added_weight_lb) ?? 'bw'}×{l.reps}
                   </div>
                   <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
                     onClick={() => startEdit(l)}>✎</button>
@@ -369,25 +429,6 @@ export default function Session({ user, navigate, menuBtn }) {
               )}
             </div>
           ))}
-
-          {upcoming.length > 0 && (
-            <>
-              <div className="session-subhead">Up next</div>
-              {upcoming.map((p, i) => (
-                <div className={`plan-row ${i === 0 ? 'current' : ''}`} key={`up-${session.planIdx + i}`}>
-                  <span className="plan-ex">{nameOf(p.exercise_id)}</span>
-                  <span className="muted">
-                    {p.block ? `${p.block} · ` : ''}round {p.round}
-                    {p.target_reps ? ` · ${p.target_reps} reps` : ''}
-                  </span>
-                </div>
-              ))}
-            </>
-          )}
-
-          {logged.length === 0 && upcoming.length === 0 && (
-            <p className="muted">No sets logged yet.</p>
-          )}
         </div>
       )}
 

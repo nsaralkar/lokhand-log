@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { get, patch, del, toDisplay, fromDisplay, unitLabel, fmtDuration } from '../api'
+import { get, patch, del, WEIGHT_UNIT, fmtDuration } from '../api'
 import Confirm from '../components/Confirm'
 
-export default function History({ user, openSession: deepLink, onOpened, menuBtn }) {
-  const units = user.units
+export default function History({ openSession: deepLink, onOpened, menuBtn }) {
   const [sessions, setSessions] = useState([])
   const [open, setOpen] = useState(null)      // session summary
   const [editing, setEditing] = useState(null) // entry being edited
@@ -28,7 +27,7 @@ export default function History({ user, openSession: deepLink, onOpened, menuBtn
   async function saveEdit() {
     const p = { reps: Number(editing.reps) }
     if (editing.weight != null && editing.weight !== '')
-      p.weight_kg = fromDisplay(Number(editing.weight), units)
+      p.weight_lb = Number(editing.weight)
     await patch(`/entries/${editing.id}`, p)
     setEditing(null)
     openSession(open.session_id)
@@ -50,7 +49,7 @@ export default function History({ user, openSession: deepLink, onOpened, menuBtn
         </div>
         <h1>{open.entries[0]?.ts?.slice(0, 10)}</h1>
         <p className="muted">
-          {fmtDuration(open.duration_s)} · {toDisplay(open.tonnage_kg, units)} {unitLabel(units)} total
+          {fmtDuration(open.duration_s)} · {open.tonnage_lb} {WEIGHT_UNIT} total
         </p>
         <div className="card">
           {sets.map((e) => (
@@ -66,7 +65,7 @@ export default function History({ user, openSession: deepLink, onOpened, menuBtn
               </div>
               {editing?.id === e.id ? (
                 <div className="row" style={{ maxWidth: 260 }}>
-                  <input inputMode="decimal" value={editing.weight ?? ''} placeholder={unitLabel(units)}
+                  <input inputMode="decimal" value={editing.weight ?? ''} placeholder={WEIGHT_UNIT}
                     onChange={(ev) => setEditing({ ...editing, weight: ev.target.value })} />
                   <input inputMode="numeric" value={editing.reps}
                     onChange={(ev) => setEditing({ ...editing, reps: ev.target.value })} />
@@ -76,13 +75,13 @@ export default function History({ user, openSession: deepLink, onOpened, menuBtn
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div className="load">
                     {e.type === 'cardio'
-                      ? `${e.distance_km ?? '—'} km`
-                      : `${toDisplay(e.weight_kg ?? e.added_weight_kg, units) ?? 'bw'}×${e.reps}`}
+                      ? `${e.distance_mi ?? '—'} mi`
+                      : `${(e.weight_lb ?? e.added_weight_lb) ?? 'bw'}×${e.reps}`}
                   </div>
                   {e.type === 'set' && (
                     <>
                       <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
-                        onClick={() => setEditing({ id: e.id, reps: e.reps, weight: toDisplay(e.weight_kg, units) })}>✎</button>
+                        onClick={() => setEditing({ id: e.id, reps: e.reps, weight: e.weight_lb })}>✎</button>
                       <button className="ghost danger" style={{ minHeight: 40, padding: '0 10px' }}
                         onClick={() => setConfirmId(e.id)}>✕</button>
                     </>

@@ -1,4 +1,4 @@
-"""Shared exercise library (data-repo YAML) and per-user workout templates."""
+"""Shared exercise library and shared workout routines (both data-repo YAML)."""
 from __future__ import annotations
 
 import re
@@ -55,30 +55,35 @@ def add_exercise(ex: Exercise) -> Exercise:
     return ex
 
 
-def load_templates(username: str) -> dict[str, dict]:
-    tdir = config.templates_dir(username)
-    out = {}
-    if tdir.exists():
-        for f in sorted(tdir.glob("*.yaml")):
-            out[f.stem] = yaml.safe_load(f.read_text())
+def load_routines() -> dict[str, dict]:
+    """Parse the shared routine library. Each YAML file is one routine (a program
+    with a `name` and a list of `days`), keyed here by its file slug. Days each
+    hold `blocks`; a day is what you start a session from."""
+    rdir = config.routines_dir()
+    out: dict[str, dict] = {}
+    if rdir.exists():
+        for f in sorted(rdir.glob("*.yaml")):
+            out[f.stem] = yaml.safe_load(f.read_text()) or {}
     return out
 
 
-def save_template(username: str, slug: str, template: dict) -> None:
-    tdir = config.templates_dir(username)
-    tdir.mkdir(parents=True, exist_ok=True)
-    (tdir / f"{slug}.yaml").write_text(
-        yaml.safe_dump(template, sort_keys=False, allow_unicode=True))
-    from .storage import git_commit
-    git_commit(f"template: save {username}/{slug}")
+def find_day(routine: dict, day_name: str | None) -> dict | None:
+    """Locate a day within a routine by its `name` (falling back to the first day
+    when unspecified)."""
+    days = routine.get("days", [])
+    if not days:
+        return None
+    if day_name is None:
+        return days[0]
+    return next((d for d in days if d.get("name") == day_name), None)
 
 
-def expand_template(template: dict) -> list[dict]:
-    """Flatten a template's blocks into an ordered list of planned sets.
+def expand_day(day: dict) -> list[dict]:
+    """Flatten a routine day's blocks into an ordered list of planned sets.
     Straight sets repeat one exercise; supersets/circuits interleave rounds —
     which maps directly onto consecutive SetEntries at log time."""
     plan: list[dict] = []
-    for block in template.get("blocks", []):
+    for block in day.get("blocks", []):
         btype = block.get("type", "straight")
         if btype == "straight":
             for i in range(block.get("sets", 3)):

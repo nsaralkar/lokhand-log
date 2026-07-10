@@ -1,7 +1,5 @@
-// Thin fetch wrapper. All logic lives in the backend; this converts units for
-// display only (storage is always metric) and passes JSON through.
-const LB_PER_KG = 2.2046226218
-
+// Thin fetch wrapper. All logic lives in the backend; this just passes JSON
+// through. Storage is native imperial (lb, in, mi) — there is no unit conversion.
 export async function api(path, opts = {}) {
   const res = await fetch(`/api${path}`, {
     credentials: 'include',
@@ -20,17 +18,9 @@ export const patch = (p, body) => api(p, { method: 'PATCH', body })
 export const del = (p) => api(p, { method: 'DELETE' })
 export const put = (p, body) => api(p, { method: 'PUT', body })
 
-// ---- units (display only) ----
-export const toDisplay = (kg, units) =>
-  kg == null ? null : units === 'imperial' ? Math.round(kg * LB_PER_KG * 10) / 10 : kg
-export const fromDisplay = (val, units) =>
-  val == null ? null : units === 'imperial' ? Math.round((val / LB_PER_KG) * 100) / 100 : val
-export const unitLabel = (units) => (units === 'imperial' ? 'lb' : 'kg')
-export const lenToDisplay = (cm, units) =>
-  cm == null ? null : units === 'imperial' ? Math.round((cm / 2.54) * 10) / 10 : cm
-export const lenFromDisplay = (val, units) =>
-  val == null ? null : units === 'imperial' ? Math.round(val * 2.54 * 10) / 10 : val
-export const lenLabel = (units) => (units === 'imperial' ? 'in' : 'cm')
+// ---- units (native imperial; no conversion) ----
+export const WEIGHT_UNIT = 'lb'
+export const LEN_UNIT = 'in'
 
 export const fmtDuration = (s) => {
   if (s == null) return '—'

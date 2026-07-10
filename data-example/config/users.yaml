@@ -3,4 +3,3 @@
 - username: demo
   password_hash: "$2b$12$WdkUG27/MCIvD0uoitbl/eVICv8tVFtRNo5qT2JEOqGGWWr1GSOgi"
   display_name: Demo
-  units: imperial   # display only; files always store metric

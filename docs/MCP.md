@@ -24,11 +24,10 @@ Claude Code: `claude mcp add --transport http fitness http://<host>:8080/mcp`
 | `get_volume_trend` / `get_muscle_group_volume` | tonnage over time, balance |
 | `get_prs` | best e1RM set per exercise |
 | `get_cardio_trends`, `get_body_metrics` | cardio + weight/dimensions series |
-| `get_templates` | current programming |
+| `get_routines` | current programming (routines and their days) |
 | `get_raw_entries` | escape hatch: raw JSONL between dates |
 
-All loads are canonical kg — tell Claude your display preference or let it read
-it from context.
+All values are native imperial: loads in lb, distances in mi, dimensions in in.
 
 ## Prompt starting point
 
@@ -36,7 +35,7 @@ it from context.
 > answering anything about my training. When I ask what to do for an exercise,
 > pull `get_exercise_history`, consider RPE and notes, and recommend a concrete
 > load/reps for today with one-line reasoning. Flag muscle groups whose weekly
-> volume has dropped >30% vs my 8-week norm. I use imperial units.
+> volume has dropped >30% vs my 8-week norm.
 
 ## Alternative: no server at all
 

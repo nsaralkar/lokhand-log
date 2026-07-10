@@ -3,13 +3,12 @@ import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, Legend,
 } from 'recharts'
-import { get, toDisplay, unitLabel, MUSCLE_COLORS } from '../api'
+import { get, WEIGHT_UNIT, MUSCLE_COLORS } from '../api'
 
-const axis = { stroke: '#7e8894', fontSize: 12 }
-const tip = { contentStyle: { background: '#1d222a', border: '1px solid #313a46', borderRadius: 8, color: '#edeff2' } }
+const axis = { stroke: '#8a94a2', fontSize: 12 }
+const tip = { contentStyle: { background: '#262c36', border: '1px solid #3d4653', borderRadius: 8, color: '#edeff2' } }
 
-export default function Trends({ user, menuBtn }) {
-  const units = user.units
+export default function Trends({ menuBtn }) {
   const [volume, setVolume] = useState([])
   const [muscle, setMuscle] = useState({ muscle_groups: [], data: [] })
   const [prs, setPrs] = useState([])
@@ -19,28 +18,28 @@ export default function Trends({ user, menuBtn }) {
 
   useEffect(() => {
     get('/analytics/volume').then((v) =>
-      setVolume(v.map((d) => ({ ...d, volume: toDisplay(d.volume_kg, units) }))))
+      setVolume(v.map((d) => ({ ...d, volume: d.volume_lb }))))
     get('/analytics/muscle-volume').then((m) =>
       setMuscle({ ...m, data: m.data.map((row) => {
         const out = { bucket: row.bucket }
-        for (const g of m.muscle_groups) if (row[g]) out[g] = toDisplay(row[g], units)
+        for (const g of m.muscle_groups) if (row[g]) out[g] = row[g]
         return out
       })}))
     get('/analytics/prs').then(setPrs)
     get('/exercises').then(setExercises)
-  }, [units])
+  }, [])
 
   useEffect(() => {
     if (!exId) return setProg([])
     get(`/analytics/exercises/${exId}/progression`).then((p) =>
-      setProg(p.sessions.map((s) => ({ date: s.date, e1rm: toDisplay(s.e1rm_kg, units) }))))
-  }, [exId, units])
+      setProg(p.sessions.map((s) => ({ date: s.date, e1rm: s.e1rm_lb }))))
+  }, [exId])
 
   return (
     <>
       <div className="pagehead">{menuBtn}<h1>Trends</h1></div>
 
-      <h2>Weekly volume ({unitLabel(units)})</h2>
+      <h2>Weekly volume ({WEIGHT_UNIT})</h2>
       <div className="card" style={{ height: 220 }}>
         <ResponsiveContainer>
           <LineChart data={volume}>
@@ -64,7 +63,7 @@ export default function Trends({ user, menuBtn }) {
         </ResponsiveContainer>
       </div>
 
-      <h2>Exercise progression (e1RM, {unitLabel(units)})</h2>
+      <h2>Exercise progression (e1RM, {WEIGHT_UNIT})</h2>
       <div className="card">
         <select value={exId} onChange={(e) => setExId(e.target.value)}>
           <option value="">choose exercise…</option>
@@ -91,8 +90,8 @@ export default function Trends({ user, menuBtn }) {
             {prs.map((p) => (
               <tr key={p.exercise_id}>
                 <td>{exercises.find((e) => e.id === p.exercise_id)?.name || p.exercise_id}</td>
-                <td>{toDisplay(p.load_kg, units)}×{p.reps}</td>
-                <td>{toDisplay(p.e1rm_kg, units)}</td>
+                <td>{p.load_lb}×{p.reps}</td>
+                <td>{p.e1rm_lb}</td>
                 <td className="muted">{p.date}</td>
               </tr>
             ))}

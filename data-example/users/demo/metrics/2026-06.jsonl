@@ -1,3 +1,3 @@
-{"id": "m1", "ts": "2026-06-01T08:00:00-04:00", "type": "metric", "metric": "weight", "value": 72.6, "unit": "kg"}
-{"id": "m2", "ts": "2026-06-15T08:00:00-04:00", "type": "metric", "metric": "weight", "value": 72.1, "unit": "kg"}
-{"id": "m3", "ts": "2026-06-15T08:01:00-04:00", "type": "metric", "metric": "bicep_l", "value": 33.0, "unit": "cm"}
+{"id": "m1", "ts": "2026-06-01T08:00:00-04:00", "type": "metric", "metric": "weight", "value": 160.0, "unit": "lb"}
+{"id": "m2", "ts": "2026-06-15T08:00:00-04:00", "type": "metric", "metric": "weight", "value": 159.0, "unit": "lb"}
+{"id": "m3", "ts": "2026-06-15T08:01:00-04:00", "type": "metric", "metric": "bicep_l", "value": 13.0, "unit": "in"}

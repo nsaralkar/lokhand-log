@@ -1,0 +1,30 @@
+# A routine is one training program with multiple days. Start a session from a
+# day (the UI lists days under the routine heading). Blocks: straight sets, or
+# supersets/circuits (rounds x a list of exercises).
+name: Dumbbell Split
+days:
+  - name: Push Day
+    blocks:
+      - type: straight
+        exercise: chest_press_db_incline
+        sets: 3
+        target_reps: 10
+      - type: superset
+        label: shoulder finisher
+        rounds: 3
+        exercises: [lateral_raise_db, pullup]
+        target_reps: 12
+  - name: Lower Day
+    blocks:
+      - type: straight
+        exercise: goblet_squat_db
+        sets: 3
+        target_reps: 12
+      - type: straight
+        exercise: rdl_db
+        sets: 3
+        target_reps: 10
+      - type: straight
+        exercise: row_1arm_db
+        sets: 3
+        target_reps: 12

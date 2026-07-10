@@ -9,7 +9,7 @@ cd /srv/fitness-data
 cd /path/to/fitness-app/backend
 uv run python -c "from app.auth import hash_password; print(hash_password('YOUR_PASSWORD'))"
 # paste the hash into /srv/fitness-data/config/users.yaml; delete the demo user
-# and the users/demo directory; create users/<yourname>/{workouts,metrics,templates}
+# and the users/demo directory; create users/<yourname>/{workouts,metrics}
 cd /srv/fitness-data && git init && git add -A && git commit -m init
 ```
 

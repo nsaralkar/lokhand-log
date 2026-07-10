@@ -6,7 +6,6 @@ users.yaml shape:
   - username: rachna
     password_hash: "$2b$12$..."
     display_name: Rachna
-    units: imperial        # imperial | metric (display only; storage is metric)
 """
 from __future__ import annotations
 
@@ -49,8 +48,7 @@ def current_user(fitness_session: str | None = Cookie(default=None)) -> dict:
     if user is None:
         raise HTTPException(401, "unknown user")
     return {"username": user["username"],
-            "display_name": user.get("display_name", user["username"]),
-            "units": user.get("units", "metric")}
+            "display_name": user.get("display_name", user["username"])}
 
 
 def hash_password(password: str) -> str:

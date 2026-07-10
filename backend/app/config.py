@@ -21,8 +21,6 @@ MUSCLE_GROUPS = [
     "quads", "hamstrings", "glutes", "calves", "core",
 ]
 
-LB_PER_KG = 2.2046226218
-
 
 def users_dir() -> Path:
     return DATA_DIR / "users"
@@ -40,12 +38,14 @@ def metrics_dir(username: str) -> Path:
     return user_dir(username) / "metrics"
 
 
-def templates_dir(username: str) -> Path:
-    return user_dir(username) / "templates"
-
-
 def exercises_file() -> Path:
     return DATA_DIR / "shared" / "exercises.yaml"
+
+
+def routines_dir() -> Path:
+    # Routines are shared (like the exercise library): each YAML is one routine
+    # with multiple days. Reference them by file slug.
+    return DATA_DIR / "shared" / "routines"
 
 
 def users_config_file() -> Path:

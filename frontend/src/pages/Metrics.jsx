@@ -1,42 +1,33 @@
 import { useEffect, useState } from 'react'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts'
-import {
-  get, post, toDisplay, fromDisplay, unitLabel,
-  lenToDisplay, lenFromDisplay, lenLabel,
-} from '../api'
+import { get, post } from '../api'
 
 // Expandable: add a row here (or just log a new metric name via the API) and it
-// shows up. Weight is kg-canonical; dimensions are cm-canonical.
+// shows up. All native imperial — body weight in lb, dimensions in in.
 const METRICS = [
-  { id: 'weight', name: 'Body weight', unit: 'kg' },
-  { id: 'waist', name: 'Waist', unit: 'cm' },
-  { id: 'chest', name: 'Chest', unit: 'cm' },
-  { id: 'bicep_l', name: 'Bicep (L)', unit: 'cm' },
-  { id: 'bicep_r', name: 'Bicep (R)', unit: 'cm' },
-  { id: 'thigh_l', name: 'Thigh (L)', unit: 'cm' },
-  { id: 'hips', name: 'Hips', unit: 'cm' },
+  { id: 'weight', name: 'Body weight', unit: 'lb' },
+  { id: 'waist', name: 'Waist', unit: 'in' },
+  { id: 'chest', name: 'Chest', unit: 'in' },
+  { id: 'bicep_l', name: 'Bicep (L)', unit: 'in' },
+  { id: 'bicep_r', name: 'Bicep (R)', unit: 'in' },
+  { id: 'thigh_l', name: 'Thigh (L)', unit: 'in' },
+  { id: 'hips', name: 'Hips', unit: 'in' },
 ]
 
-export default function Metrics({ user, menuBtn }) {
-  const units = user.units
+export default function Metrics({ menuBtn }) {
   const [metric, setMetric] = useState(METRICS[0])
   const [value, setValue] = useState('')
   const [series, setSeries] = useState([])
 
-  const isWeight = metric.unit === 'kg'
-  const disp = (v) => (isWeight ? toDisplay(v, units) : lenToDisplay(v, units))
-  const label = isWeight ? unitLabel(units) : lenLabel(units)
+  const label = metric.unit
 
   const load = () =>
     get(`/metrics/${metric.id}`).then((s) =>
-      setSeries(s.map((p) => ({ date: p.date, value: disp(p.value) }))))
-  useEffect(() => { load() }, [metric, units])
+      setSeries(s.map((p) => ({ date: p.date, value: p.value }))))
+  useEffect(() => { load() }, [metric])
 
   async function log() {
-    const canonical = isWeight
-      ? fromDisplay(Number(value), units)
-      : lenFromDisplay(Number(value), units)
-    await post('/metrics', { metric: metric.id, value: canonical, unit: metric.unit })
+    await post('/metrics', { metric: metric.id, value: Number(value), unit: metric.unit })
     setValue(''); load()
   }
 
@@ -59,9 +50,9 @@ export default function Metrics({ user, menuBtn }) {
       <div className="card" style={{ height: 220 }}>
         <ResponsiveContainer>
           <LineChart data={series}>
-            <XAxis dataKey="date" stroke="#7e8894" fontSize={12} />
-            <YAxis stroke="#7e8894" fontSize={12} width={48} domain={['auto', 'auto']} />
-            <Tooltip contentStyle={{ background: '#1d222a', border: '1px solid #313a46', borderRadius: 8, color: '#edeff2' }} />
+            <XAxis dataKey="date" stroke="#8a94a2" fontSize={12} />
+            <YAxis stroke="#8a94a2" fontSize={12} width={48} domain={['auto', 'auto']} />
+            <Tooltip contentStyle={{ background: '#262c36', border: '1px solid #3d4653', borderRadius: 8, color: '#edeff2' }} />
             <Line type="monotone" dataKey="value" stroke="#3fa66a" strokeWidth={2} />
           </LineChart>
         </ResponsiveContainer>

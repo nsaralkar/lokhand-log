@@ -18,7 +18,7 @@ import os
 from fastmcp import FastMCP
 
 from app import analytics, config
-from app.library import load_exercises, load_templates
+from app.library import load_exercises, load_routines
 from app.storage import iter_entries
 
 USER = os.environ.get("FITNESS_MCP_USER", "demo")
@@ -26,8 +26,8 @@ USER = os.environ.get("FITNESS_MCP_USER", "demo")
 mcp = FastMCP(
     "fitness-data",
     instructions=(
-        "Fitness history for one athlete. Loads are canonical kg; convert for the "
-        "user's preference when presenting. Tonnage = load x reps, work sets only. "
+        "Fitness history for one athlete. All units are imperial: loads in lb, "
+        "distances in mi, dimensions in in. Tonnage = load x reps, work sets only. "
         "Use exercise ids from list_exercises when querying progression."
     ),
 )
@@ -61,7 +61,7 @@ def get_exercise_history(exercise_id: str, limit_sessions: int = 20) -> dict:
 
 @mcp.tool()
 def get_volume_trend(bucket: str = "week", muscle: str | None = None) -> list[dict]:
-    """Tonnage over time (kg), weekly or per-day, optionally filtered by
+    """Tonnage over time (lb), weekly or per-day, optionally filtered by
     primary muscle group."""
     return analytics.volume_over_time(USER, bucket, muscle)
 
@@ -86,15 +86,15 @@ def get_cardio_trends(activity: str | None = None) -> list[dict]:
 
 @mcp.tool()
 def get_body_metrics(metric: str = "weight") -> list[dict]:
-    """Time series for a body metric (weight, bicep_l, waist, ...). Values are
-    canonical metric units."""
+    """Time series for a body metric (weight in lb, dimensions in in, ...)."""
     return analytics.metric_series(USER, metric)
 
 
 @mcp.tool()
-def get_templates() -> dict:
-    """Saved workout templates (straight sets, supersets, circuits)."""
-    return load_templates(USER)
+def get_routines() -> dict:
+    """Shared workout routines — each a program with multiple days of blocks
+    (straight sets, supersets, circuits)."""
+    return load_routines()
 
 
 @mcp.tool()

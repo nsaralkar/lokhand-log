@@ -10,8 +10,8 @@ from pydantic import BaseModel
 
 from . import analytics, config, storage
 from .auth import current_user, make_session_token, verify_login
-from .library import (add_exercise, expand_template, load_exercises,
-                      load_templates, save_template)
+from .library import (add_exercise, expand_day, find_day, load_exercises,
+                      load_routines)
 from .models import (CardioEntry, Exercise, MetricEntry, SessionEnd,
                      SessionStart, SetEntry)
 
@@ -32,7 +32,8 @@ def login(body: LoginBody, response: Response):
         raise HTTPException(401, "bad credentials")
     response.set_cookie(config.SESSION_COOKIE, make_session_token(user["username"]),
                         max_age=config.SESSION_MAX_AGE_S, httponly=True, samesite="lax")
-    return {"username": user["username"], "units": user.get("units", "metric")}
+    return {"username": user["username"],
+            "display_name": user.get("display_name", user["username"])}
 
 
 @router.post("/logout")
@@ -89,20 +90,24 @@ def _auto_close_stale(username: str):
 
 class SessionStartBody(BaseModel):
     name: Optional[str] = None
-    template: Optional[str] = None
+    routine: Optional[str] = None          # routine slug
+    day: Optional[str] = None              # day name within the routine
 
 
 @router.post("/sessions/start")
 def start_session(body: SessionStartBody, user=Depends(current_user)):
     _auto_close_stale(user["username"])
-    entry = SessionStart(name=body.name, template=body.template)
+    plan = None
+    name = body.name
+    if body.routine:
+        routine = load_routines().get(body.routine)
+        day = find_day(routine, body.day) if routine else None
+        if day:
+            plan = expand_day(day)
+            name = name or day.get("name")
+    entry = SessionStart(name=name, routine=body.routine, day=body.day)
     storage.append_entry(config.workouts_dir(user["username"]),
                          entry.model_dump(exclude_none=True))
-    plan = None
-    if body.template:
-        tpl = load_templates(user["username"]).get(body.template)
-        if tpl:
-            plan = expand_template(tpl)
     return {"session_id": entry.session_id, "plan": plan}
 
 
@@ -180,17 +185,11 @@ def metric_series(metric: str, user=Depends(current_user)):
     return analytics.metric_series(user["username"], metric)
 
 
-# ---------- templates ----------
+# ---------- routines ----------
 
-@router.get("/templates")
-def templates(user=Depends(current_user)):
-    return load_templates(user["username"])
-
-
-@router.put("/templates/{slug}")
-def put_template(slug: str, template: dict, user=Depends(current_user)):
-    save_template(user["username"], slug, template)
-    return {"ok": True}
+@router.get("/routines")
+def routines(user=Depends(current_user)):
+    return load_routines()
 
 
 # ---------- analytics ----------

@@ -6,9 +6,9 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
 
 ## Invariants
 
-1. **Canonical metric units in files.** Loads in kg, distances in km, dimensions
-   in cm, durations in seconds. The API converts per user preference; files
-   never mix units.
+1. **Native imperial units in files.** Loads in lb, distances in mi, dimensions
+   in in, durations in seconds — the units the athlete trains in. No conversion
+   happens anywhere; files never mix units.
 2. **One JSON line per entry**, monthly files (`2026-07.jsonl`), chronological
    append. Monthly sharding keeps individual files LLM-context-sized.
 3. **Append-only in normal operation.** Corrections rewrite the monthly file;
@@ -19,10 +19,10 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
 ## Entry types (`users/<name>/workouts/YYYY-MM.jsonl`)
 
 ```json
-{"id":"a1b2c3d4e5f6","ts":"2026-07-04T09:12:31-04:00","type":"session_start","session_id":"9f8e7d6c5b4a","name":"Push Day","template":"push_day"}
-{"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"chest_press_db_incline","weight_kg":45.4,"reps":12,"rpe":8,"notes":"felt strong"}
-{"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"pullup","added_weight_kg":10.0,"reps":6}
-{"id":"...","ts":"...","type":"cardio","session_id":"...","activity":"run","duration_s":1860,"distance_km":5.0,"avg_hr":152}
+{"id":"a1b2c3d4e5f6","ts":"2026-07-04T09:12:31-04:00","type":"session_start","session_id":"9f8e7d6c5b4a","name":"Push Day","routine":"dumbbell_split","day":"Push Day"}
+{"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"chest_press_db_incline","weight_lb":100,"reps":12,"rpe":8,"notes":"felt strong"}
+{"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"pullup","added_weight_lb":25.0,"reps":6}
+{"id":"...","ts":"...","type":"cardio","session_id":"...","activity":"run","duration_s":1860,"distance_mi":3.1,"avg_hr":152}
 {"id":"...","ts":"...","type":"session_end","session_id":"9f8e7d6c5b4a"}
 ```
 
@@ -31,7 +31,7 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
   it's recoverable from ordering and timestamps.
 - **Rest/exercise time = timestamp deltas.** The API computes `since_prev_s`
   per entry; nothing extra is stored.
-- **Bodyweight movements** omit `weight_kg` and use `added_weight_kg`
+- **Bodyweight movements** omit `weight_lb` and use `added_weight_lb`
   (positive = belt/vest, negative = assistance, 0 = strict bodyweight).
   Tonnage uses the latest logged body weight when available.
 - `warmup: true` excludes a set from volume/PR analytics.
@@ -42,8 +42,8 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
 ## Metrics (`users/<name>/metrics/YYYY-MM.jsonl`)
 
 ```json
-{"id":"...","ts":"...","type":"metric","metric":"weight","value":72.6,"unit":"kg"}
-{"id":"...","ts":"...","type":"metric","metric":"bicep_l","value":33.0,"unit":"cm"}
+{"id":"...","ts":"...","type":"metric","metric":"weight","value":160.0,"unit":"lb"}
+{"id":"...","ts":"...","type":"metric","metric":"bicep_l","value":13.0,"unit":"in"}
 ```
 
 `metric` names are conventional, not enumerated — new dimensions (or future
@@ -64,23 +64,37 @@ chest_press_db_incline:
   secondary: [triceps, shoulders]
   bodyweight: false          # true = load is body weight ± added/assist
   default_rest_s: 120
+  notes: Bench at 30°...     # optional form cues, shown on the app's Info tab
 ```
 
 Set and cardio entries reference an exercise by its id (the `exercise_id`
-field); templates reference it too. Those are the map keys here.
+field); routines reference it too. Those are the map keys here.
 
-## Templates (`users/<name>/templates/*.yaml`)
+## Routines (`shared/routines/*.yaml`)
+
+Routines are **shared** (like the exercise library). Each file is one training
+program with a `name` and a list of `days`; each day holds `blocks`. The app
+lists the days under the routine heading — you start a session from a day.
 
 ```yaml
-name: Push Day
-blocks:
-  - type: straight          # sets x one exercise
-    exercise: chest_press_db_incline
-    sets: 3
-    target_reps: 10
-  - type: superset          # rounds x [exercises] — circuits are the same with more exercises
-    rounds: 3
-    exercises: [lateral_raise_db, pullup]
+name: Dumbbell Split
+days:
+  - name: Push Day
+    blocks:
+      - type: straight          # sets x one exercise
+        exercise: chest_press_db_incline
+        sets: 3
+        target_reps: 10
+      - type: superset          # rounds x [exercises] — circuits are the same with more exercises
+        rounds: 3
+        exercises: [lateral_raise_db, pullup]
+  - name: Lower Day
+    blocks:
+      - type: straight
+        exercise: goblet_squat_db
+        sets: 3
 ```
 
-Templates are plans; logging expands them into ordinary `set` entries.
+Routines are plans; logging expands the chosen day into ordinary `set` entries.
+Substituting an exercise mid-session edits only that session's plan — the
+routine YAML is never rewritten.

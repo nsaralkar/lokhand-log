@@ -10,6 +10,9 @@ chest_press_db_incline:
   - triceps
   - shoulders
   default_rest_s: 120
+  notes: |-
+    Bench at 30°. Retract the shoulder blades and keep them pinned.
+    Lower to a light stretch, drive the dumbbells up and slightly together.
 goblet_squat_db:
   name: Goblet Squat, DB
   equipment: dumbbell
@@ -18,6 +21,7 @@ goblet_squat_db:
   - glutes
   - core
   default_rest_s: 150
+  notes: Hold the bell against the chest, elbows inside the knees at the bottom.
 row_1arm_db:
   name: One-Arm Row, DB
   equipment: dumbbell
@@ -39,6 +43,7 @@ pullup:
   - core
   bodyweight: true
   default_rest_s: 150
+  notes: Dead hang to chin over the bar. Add weight on a belt once you clear 10 clean reps.
 rdl_db:
   name: Romanian Deadlift, DB
   equipment: dumbbell

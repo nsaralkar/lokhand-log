@@ -1,7 +1,8 @@
 """Entry schemas. One JSON line per entry in monthly JSONL files.
 
-Canonical storage units are METRIC (kg, km, seconds, cm). The API converts for
-display based on the user's unit preference; files never mix units.
+Canonical storage units are IMPERIAL (lb, mi, in, seconds) — the units the
+athlete actually trains in, so the plain-text files read the way they think.
+No unit conversion happens anywhere; files never mix units.
 """
 from __future__ import annotations
 
@@ -33,8 +34,8 @@ class SetEntry(BaseEntry):
     type: Literal["set"] = "set"
     session_id: str
     exercise_id: str
-    weight_kg: Optional[float] = None      # None for pure bodyweight
-    added_weight_kg: Optional[float] = None  # bodyweight movements: +weight (belt) or -weight (assist)
+    weight_lb: Optional[float] = None      # None for pure bodyweight
+    added_weight_lb: Optional[float] = None  # bodyweight movements: +weight (belt) or -weight (assist)
     reps: int
     rpe: Optional[float] = None            # 1-10, optional single-tap field
     warmup: bool = False
@@ -52,15 +53,16 @@ class CardioEntry(BaseEntry):
     session_id: str
     activity: str                          # run, bike, row, ruck, otf_class...
     duration_s: int
-    distance_km: Optional[float] = None
+    distance_mi: Optional[float] = None
     avg_hr: Optional[int] = None
 
 
 class SessionStart(BaseEntry):
     type: Literal["session_start"] = "session_start"
     session_id: str = Field(default_factory=new_id)
-    name: Optional[str] = None             # e.g. template name
-    template: Optional[str] = None
+    name: Optional[str] = None             # e.g. the routine day's name
+    routine: Optional[str] = None          # routine slug this session came from
+    day: Optional[str] = None              # which day within the routine
 
 
 class SessionEnd(BaseEntry):
@@ -70,12 +72,12 @@ class SessionEnd(BaseEntry):
 
 
 class MetricEntry(BaseEntry):
-    """Body metrics: weight (kg), dimensions (cm), and future wearable data.
+    """Body metrics: weight (lb), dimensions (in), and future wearable data.
     `metric` is freeform-but-conventional; see data-example/shared for the list."""
     type: Literal["metric"] = "metric"
     metric: str                            # weight | bicep_l | waist | ...
     value: float
-    unit: Literal["kg", "cm", "bpm", "pct"] = "kg"
+    unit: Literal["lb", "in", "bpm", "pct"] = "lb"
 
 
 ENTRY_TYPES = {
@@ -102,6 +104,7 @@ class Exercise(BaseModel):
     secondary: list[str] = []
     bodyweight: bool = False
     default_rest_s: int = 120
+    notes: Optional[str] = None            # form cues / setup reminders, shown on the Info tab
 
     @field_validator("primary")
     @classmethod
