@@ -7,3 +7,7 @@ dev-dist/
 .pytest_cache/
 uv.lock
 package-lock.json
+.env
+
+scratch.md
+

@@ -62,6 +62,17 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .logtimer .adj { flex: 0 0 auto; min-width: 46px; padding: 0; font-family: var(--font-display); font-size: 16px; }
 .logtimer .adj.skip { color: var(--danger); border-color: var(--danger); }
 
+/* Log-set row: the button plus an always-on count-up stopwatch for the current
+   set. Muted so it never competes with the amber rest countdown. */
+.logrow { display: flex; gap: 8px; margin-top: 12px; height: 60px; }
+.logrow .big { flex: 1; margin: 0; }
+.logrow .setclock {
+  flex: 0 0 auto; min-width: 76px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 26px; font-weight: 700; line-height: 1;
+  color: var(--muted); font-variant-numeric: tabular-nums;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+}
+
 .row { display: flex; gap: 8px; }
 .row > * { flex: 1; }
 
@@ -79,6 +90,16 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 }
 .field .numval:focus { outline: none; }
 .field .unit { color: var(--muted); font-size: 14px; flex: 0 0 auto; }
+
+/* RPE: an optional single-tap picker wedged to the right of reps, narrower and a
+   notch smaller than the weight/reps numerals so it reads as secondary. */
+.fields .field.rpe { flex: 0 0 auto; width: 84px; }
+.field .rpeval {
+  flex: 1; min-width: 0; border: none; background: transparent; padding: 0; min-height: 48px;
+  font-family: var(--font-display); font-size: 30px; font-weight: 700; color: var(--ink);
+  -webkit-appearance: none; appearance: none;
+}
+.field .rpeval:focus { outline: none; }
 
 /* Workout plan rows ("Up next" card). Row metrics are kept identical to .entry
    so the Up-next and This-session lists read as one consistent rhythm. */
@@ -109,7 +130,7 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .addex { flex: 0 0 auto; width: 48px; min-height: 48px; padding: 0; font-size: 26px; line-height: 1;
   background: var(--surface-2); }
 
-/* In-card subtabs (per-exercise History / Trend) */
+/* In-card subtabs (per-exercise Exercise / History / Info) */
 .subtabs { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--line);
   margin-bottom: 10px; }
 .subtabs button { min-height: 40px; border: none; border-radius: 0; background: none;

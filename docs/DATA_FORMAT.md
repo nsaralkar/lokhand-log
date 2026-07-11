@@ -73,27 +73,31 @@ field); routines reference it too. Those are the map keys here.
 ## Routines (`shared/routines/*.yaml`)
 
 Routines are **shared** (like the exercise library). Each file is one training
-program with a `name` and a list of `days`; each day holds `blocks`. The app
-lists the days under the routine heading — you start a session from a day.
+program with an optional `name` and a list of `days`; each day holds `blocks`.
+The app lists the days under the routine heading — you start a session from a
+day.
 
 ```yaml
-name: Dumbbell Split
+name: Dumbbell Split          # optional; falls back to the filename
 days:
   - name: Push Day
     blocks:
-      - type: straight          # sets x one exercise
-        exercise: chest_press_db_incline
-        sets: 3
-        target_reps: 10
-      - type: superset          # rounds x [exercises] — circuits are the same with more exercises
+      - exercises: [chest_press_db_incline]   # one exercise -> straight block
+        rounds: 3                              # times through the list
+      - label: shoulder finisher              # >1 exercise -> superset/circuit
         rounds: 3
         exercises: [lateral_raise_db, pullup]
   - name: Lower Day
     blocks:
-      - type: straight
-        exercise: goblet_squat_db
-        sets: 3
+      - exercises: [goblet_squat_db]
+        rounds: 3
 ```
+
+A block has just three keys: `exercises` (the list, always), `rounds` (how many
+times to run through the list, default 3), and optional `label`. One exercise is
+a straight block; more than one is a superset/circuit. There is no `type` key,
+and reps are logged as performed rather than prescribed. If a file omits `name`,
+its filename (without `.yaml`) is used.
 
 Routines are plans; logging expands the chosen day into ordinary `set` entries.
 Substituting an exercise mid-session edits only that session's plan — the

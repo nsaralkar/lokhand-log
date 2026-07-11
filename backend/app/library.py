@@ -63,7 +63,9 @@ def load_routines() -> dict[str, dict]:
     out: dict[str, dict] = {}
     if rdir.exists():
         for f in sorted(rdir.glob("*.yaml")):
-            out[f.stem] = yaml.safe_load(f.read_text()) or {}
+            data = yaml.safe_load(f.read_text()) or {}
+            data.setdefault("name", f.stem)   # unnamed file -> its filename is the name
+            out[f.stem] = data
     return out
 
 
@@ -79,21 +81,17 @@ def find_day(routine: dict, day_name: str | None) -> dict | None:
 
 
 def expand_day(day: dict) -> list[dict]:
-    """Flatten a routine day's blocks into an ordered list of planned sets.
-    Straight sets repeat one exercise; supersets/circuits interleave rounds —
-    which maps directly onto consecutive SetEntries at log time."""
+    """Flatten a routine day's blocks into an ordered list of planned sets. Every
+    block is an `exercises` list run for `rounds` rounds — one exercise is a
+    straight block, more than one is a superset/circuit. Each round interleaves
+    the list, which maps directly onto consecutive SetEntries at log time."""
     plan: list[dict] = []
     for block in day.get("blocks", []):
-        btype = block.get("type", "straight")
-        if btype == "straight":
-            for i in range(block.get("sets", 3)):
-                plan.append({"exercise_id": block["exercise"],
-                             "target_reps": block.get("target_reps"),
-                             "block": block.get("label"), "round": i + 1})
-        elif btype in ("superset", "circuit"):
-            for rnd in range(block.get("rounds", 3)):
-                for ex in block["exercises"]:
-                    plan.append({"exercise_id": ex,
-                                 "target_reps": block.get("target_reps"),
-                                 "block": block.get("label", btype), "round": rnd + 1})
+        exs = block.get("exercises") or []
+        if not exs:
+            continue
+        for rnd in range(block.get("rounds", 3)):
+            for ex in exs:
+                plan.append({"exercise_id": ex,
+                             "block": block.get("label"), "round": rnd + 1})
     return plan

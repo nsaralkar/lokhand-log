@@ -63,6 +63,46 @@ DATA_DIR=/srv/fitness-data docker compose up -d --build
 Caddy serves the built PWA and proxies `/api` + `/mcp` on one origin (`:8080`).
 Details, git-remote backup, and Tailscale notes: `docs/DEPLOY.md`.
 
+## Data files
+
+Two hand-edited YAML files in the data repo drive the app. Full spec and the
+JSONL log format live in `docs/DATA_FORMAT.md`; the keys in brief:
+
+**`shared/exercises.yaml`** — a mapping of canonical exercise id → attributes:
+
+```yaml
+chest_press_db_incline:      # id: referenced by set entries and routines
+  name: Chest Press, Incline, DB
+  equipment: dumbbell        # optional: barbell | dumbbell | cable | machine | bodyweight
+  primary: chest             # required: one muscle group from the fixed taxonomy
+  secondary: [triceps, shoulders]   # optional list from the same taxonomy
+  bodyweight: false          # optional: true = load is body weight ± added/assist
+  default_rest_s: 120        # optional (default 120): rest-timer length
+  notes: Bench at 30°...      # optional: form cues, shown on the app's Info tab
+```
+
+Taxonomy: `chest back shoulders biceps triceps quads hamstrings glutes calves core`.
+
+**`shared/routines/*.yaml`** — one file per routine; each is a program with an
+optional `name` and a list of `days`, and each day has `blocks`:
+
+```yaml
+name: Dumbbell Split         # optional; falls back to the filename
+days:
+  - name: Push Day           # you start a session from a day
+    blocks:
+      - exercises: [chest_press_db_incline]   # one exercise -> straight block
+        rounds: 3                              # times through the exercises list
+      - label: shoulder finisher              # >1 exercise -> superset/circuit
+        rounds: 3
+        exercises: [lateral_raise_db, pullup]
+```
+
+A block has three keys: `exercises` (the list, always), `rounds` (times through
+the list, default 3), and optional `label`. One exercise is a straight block;
+more than one is a superset/circuit. No `type` key; reps are logged as performed,
+so blocks carry no target.
+
 ## Layout
 
 ```

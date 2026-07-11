@@ -23,11 +23,11 @@ export default function Session({ user, navigate, menuBtn }) {
   const [weight, setWeight] = useState(null)   // pounds
   const [reps, setReps] = useState(10)
   const [rpe, setRpe] = useState(null)
-  const [notes, setNotes] = useState('')
-  const [timer, setTimer] = useState(null)     // {target, startedAt}
-  const [now, setNow] = useState(0)            // ticks while the rest timer runs
+  const [timer, setTimer] = useState(null)     // {target, startedAt}: rest countdown
+  const [now, setNow] = useState(0)            // ticks every 500ms while a session is live
+  const [setStartAt, setSetStartAt] = useState(0) // when the current set went active (count-up base)
   const [prog, setProg] = useState([])         // full progression for current exercise
-  const [exTab, setExTab] = useState('exercise') // 'exercise' | 'history' | 'trend' | 'info'
+  const [exTab, setExTab] = useState('exercise') // 'exercise' | 'history' | 'info'
   const [logged, setLogged] = useState([])
   const [editId, setEditId] = useState(null)   // logged set being edited
   const [editVal, setEditVal] = useState({ weight: '', reps: '' })
@@ -62,6 +62,7 @@ export default function Session({ user, navigate, menuBtn }) {
         setExText(saved.exText || '')
         setWeight(saved.weight ?? null)
         setReps(saved.reps ?? 10)
+        setSetStartAt(saved.setStartAt ?? Date.now())
         autoPop.current = false  // don't clobber the restored entry with last-set values
       }
     } catch { /* corrupt/absent resume state — start fresh */ }
@@ -75,11 +76,11 @@ export default function Session({ user, navigate, menuBtn }) {
     if (!hydrated.current) return
     if (session) {
       localStorage.setItem(RESUME_KEY, JSON.stringify({
-        session, logged, exText, weight, reps }))
+        session, logged, exText, weight, reps, setStartAt }))
     } else {
       localStorage.removeItem(RESUME_KEY)
     }
-  }, [session, logged, exText, weight, reps])
+  }, [session, logged, exText, weight, reps, setStartAt])
 
   // The picker stores/searches by name; the canonical id is derived from it.
   const exercise = useMemo(
@@ -120,19 +121,35 @@ export default function Session({ user, navigate, menuBtn }) {
     return () => wakeLock.current?.release?.()
   }, [session])
 
-  // Rest countdown lives in the Log-set button's place; tick while it runs.
+  // One clock ticks the whole live session — it drives both the rest countdown
+  // and the always-on set stopwatch (the count-up beside the Log-set button).
+  useEffect(() => {
+    if (!session) return
+    setNow(Date.now())
+    const id = setInterval(() => setNow(Date.now()), 500)
+    return () => clearInterval(id)
+  }, [session])
+
+  // Fresh rest timer -> re-arm the end-of-rest beep.
+  useEffect(() => { beeped.current = false }, [timer])
+
+  // When rest hits zero: beep once, drop the timer entirely (it does NOT flip to
+  // a count-up), and start the next set's stopwatch from zero.
   useEffect(() => {
     if (!timer) return
-    beeped.current = false
-    setNow(Date.now())
-    const id = setInterval(() => setNow(Date.now()), 250)
-    return () => clearInterval(id)
-  }, [timer])
+    const left = timer.target - Math.floor((now - timer.startedAt) / 1000)
+    if (left <= 0) {
+      if (!beeped.current) { beeped.current = true; beep() }
+      setTimer(null)
+      setSetStartAt(Date.now())
+    }
+  }, [now, timer])
 
   async function start(routine, day) {
     const r = await post('/sessions/start', { routine, day })
     setSession({ session_id: r.session_id, plan: r.plan, planIdx: 0 })
     setLogged([]); setExTab('exercise'); setPlanOpen(false); setSwapIdx(null)
+    setTimer(null); setSetStartAt(Date.now())
     if (r.plan?.length) setExText(nameOf(r.plan[0].exercise_id))
   }
 
@@ -158,14 +175,14 @@ export default function Session({ user, navigate, menuBtn }) {
     try {
       const body = {
         session_id: session.session_id, exercise_id: exerciseId, reps,
-        rpe: rpe || undefined, notes: notes || undefined,
+        rpe: rpe || undefined,
       }
       if (isBw) body.added_weight_lb = weight ?? 0
       else body.weight_lb = weight
       const r = await post('/sets', body)
       setLogged((l) => [{ ...body, id: r.id, name: exercise?.name, bodyweight: isBw }, ...l])
       setTimer({ target: r.rest_s, startedAt: Date.now() })
-      setRpe(null); setNotes('')
+      setRpe(null)
       if (session.plan) {
         const next = session.planIdx + 1
         setSession({ ...session, planIdx: next })
@@ -246,11 +263,12 @@ export default function Session({ user, navigate, menuBtn }) {
   const plan = session.plan || []
   const upcoming = plan.slice(session.planIdx)
   const shownUpcoming = planOpen ? upcoming : upcoming.slice(0, 1)
-  // Rest countdown derived from the timer + tick.
-  const remaining = timer ? timer.target - Math.floor((now - timer.startedAt) / 1000) : 0
-  const cAbs = Math.abs(remaining)
-  const cmm = Math.floor(cAbs / 60), css = String(cAbs % 60).padStart(2, '0')
-  if (timer && remaining <= 0 && !beeped.current) { beeped.current = true; beep() }
+  // Rest countdown (the effect clears the timer at zero, so this stays >= 0).
+  const remaining = timer ? Math.max(0, timer.target - Math.floor((now - timer.startedAt) / 1000)) : 0
+  const cmm = Math.floor(remaining / 60), css = String(remaining % 60).padStart(2, '0')
+  // Set stopwatch: seconds the current set has been active, always counting up.
+  const setElapsed = Math.max(0, Math.floor((now - setStartAt) / 1000))
+  const smm = Math.floor(setElapsed / 60), sss = String(setElapsed % 60).padStart(2, '0')
 
   return (
     <>
@@ -259,7 +277,6 @@ export default function Session({ user, navigate, menuBtn }) {
           {menuBtn}
           <button className={exTab === 'exercise' ? 'on' : ''} onClick={() => setExTab('exercise')}>Exercise</button>
           <button className={exTab === 'history' ? 'on' : ''} onClick={() => setExTab('history')}>History</button>
-          <button className={exTab === 'trend' ? 'on' : ''} onClick={() => setExTab('trend')}>Trend</button>
           <button className={exTab === 'info' ? 'on' : ''} onClick={() => setExTab('info')}>Info</button>
         </div>
 
@@ -288,16 +305,14 @@ export default function Session({ user, navigate, menuBtn }) {
                   onChange={(e) => setReps(e.target.value === '' ? null : Number(e.target.value))} />
                 <span className="unit">reps</span>
               </div>
-            </div>
-
-            <div className="row">
-              <input style={{ flex: 3 }} value={notes} placeholder="notes"
-                onChange={(e) => setNotes(e.target.value)} />
-              <select style={{ flex: 1 }} value={rpe ?? ''}
-                onChange={(e) => setRpe(e.target.value ? Number(e.target.value) : null)}>
-                <option value="">RPE</option>
-                {RPE.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
+              <div className="field rpe">
+                <select className="rpeval" value={rpe ?? ''}
+                  onChange={(e) => setRpe(e.target.value ? Number(e.target.value) : null)}>
+                  <option value="">–</option>
+                  {RPE.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+                <span className="unit">rpe</span>
+              </div>
             </div>
 
             {err && <p className="error">{err}</p>}
@@ -305,17 +320,16 @@ export default function Session({ user, navigate, menuBtn }) {
               <div className="logtimer">
                 <button className="adj" aria-label="Subtract 30 seconds"
                   onClick={() => setTimer((t) => ({ ...t, target: t.target - 30 }))}>−30</button>
-                <div className={`logtimer-clock ${remaining < 0 ? 'over' : ''}`}>
-                  {remaining < 0 ? '+' : ''}{cmm}:{css}
-                </div>
+                <div className="logtimer-clock">{cmm}:{css}</div>
                 <button className="adj" aria-label="Add 30 seconds"
                   onClick={() => setTimer((t) => ({ ...t, target: t.target + 30 }))}>+30</button>
                 <button className="adj skip" aria-label="Skip rest"
-                  onClick={() => setTimer(null)}>✕</button>
+                  onClick={() => { setTimer(null); setSetStartAt(Date.now()) }}>✕</button>
               </div>
             ) : (
-              <div className="row" style={{ marginTop: 12 }}>
+              <div className="logrow">
                 <button className="big primary" onClick={logSet} disabled={!exerciseId}>Log set</button>
+                <div className="setclock" title="Time on current set" aria-label="Time on current set">{smm}:{sss}</div>
               </div>
             )}
           </>
@@ -326,37 +340,34 @@ export default function Session({ user, navigate, menuBtn }) {
             ? <p className="muted">Pick an exercise on the Exercise tab to see its history.</p>
             : history.length === 0
               ? <p className="muted">No history for {exercise?.name} yet.</p>
-              : history.map((s) => (
-                <div className="entry" key={s.session_id}>
-                  <div>
-                    <button className="linkdate" onClick={() => navigate('history', { session: s.session_id })}>
-                      {s.date}
-                    </button>
-                    <div className="meta">
-                      {s.sets.map((x) => `${x.load_lb}×${x.reps}`).join('  ')}
+              : (
+                <>
+                  {trend.length > 1 && (
+                    <div style={{ height: 200, margin: '6px 0 10px' }}>
+                      <ResponsiveContainer>
+                        <LineChart data={trend}>
+                          <XAxis dataKey="date" {...axis} /><YAxis {...axis} width={44} domain={['auto', 'auto']} />
+                          <Tooltip {...tip} />
+                          <Line type="monotone" dataKey="e1rm" stroke="#3b7dd8" strokeWidth={2} />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
-                  </div>
-                  <div className="load">{s.e1rm_lb} <span className="pill">e1RM</span></div>
-                </div>
-              ))
-        )}
-
-        {exTab === 'trend' && (
-          !exerciseId
-            ? <p className="muted">Pick an exercise on the Exercise tab to see its trend.</p>
-            : trend.length > 1
-              ? (
-                <div style={{ height: 200, marginTop: 6 }}>
-                  <ResponsiveContainer>
-                    <LineChart data={trend}>
-                      <XAxis dataKey="date" {...axis} /><YAxis {...axis} width={44} domain={['auto', 'auto']} />
-                      <Tooltip {...tip} />
-                      <Line type="monotone" dataKey="e1rm" stroke="#3b7dd8" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                  )}
+                  {history.map((s) => (
+                    <div className="entry" key={s.session_id}>
+                      <div>
+                        <button className="linkdate" onClick={() => navigate('history', { session: s.session_id })}>
+                          {s.date}
+                        </button>
+                        <div className="meta">
+                          {s.sets.map((x) => `${x.load_lb}×${x.reps}`).join('  ')}
+                        </div>
+                      </div>
+                      <div className="load">{s.e1rm_lb} <span className="pill">e1RM</span></div>
+                    </div>
+                  ))}
+                </>
               )
-              : <p className="muted">Not enough sessions to chart yet.</p>
         )}
 
         {exTab === 'info' && (
@@ -394,7 +405,6 @@ export default function Session({ user, navigate, menuBtn }) {
                 )}
                 <span className="muted">
                   {p.block ? `${p.block} · ` : ''}round {p.round}
-                  {p.target_reps ? ` · ${p.target_reps} reps` : ''}
                 </span>
               </div>
             )
