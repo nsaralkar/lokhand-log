@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts'
-import { get, post, patch, del, WEIGHT_UNIT } from '../api'
+import { get, post, patch, del, WEIGHT_UNIT, exColor } from '../api'
 import { unlockAudio, beep } from '../audio'
 import Confirm from '../components/Confirm'
 
@@ -33,8 +33,11 @@ export default function Session({ user, navigate, menuBtn }) {
   const [editVal, setEditVal] = useState({ weight: '', reps: '' })
   const [adding, setAdding] = useState(false)  // add-exercise form open
   const [confirmId, setConfirmId] = useState(null) // set pending delete
-  const [planOpen, setPlanOpen] = useState(false)  // Up-next expanded vs. next-only
+  const [planOpen, setPlanOpen] = useState(false)  // plan list: all rows vs. next-only
+  const [planCollapsed, setPlanCollapsed] = useState(false) // whole Plan section hidden
   const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned
+  const [sessionNotes, setSessionNotes] = useState('') // freeform notes for the session
+  const [notesOpen, setNotesOpen] = useState(false)    // session-notes box expanded
   const [err, setErr] = useState('')
   const wakeLock = useRef(null)
   const hydrated = useRef(false)
@@ -51,6 +54,7 @@ export default function Session({ user, navigate, menuBtn }) {
   }, [])
 
   const nameOf = (id) => exercises.find((e) => e.id === id)?.name || id
+  const colorOf = (id) => exColor(exercises.find((e) => e.id === id)?.primary)
 
   // Resume a workout left running when we last unmounted (tab switch / reload).
   useEffect(() => {
@@ -63,6 +67,8 @@ export default function Session({ user, navigate, menuBtn }) {
         setWeight(saved.weight ?? null)
         setReps(saved.reps ?? 10)
         setSetStartAt(saved.setStartAt ?? Date.now())
+        setSessionNotes(saved.sessionNotes || '')
+        setNotesOpen(!!saved.notesOpen)
         autoPop.current = false  // don't clobber the restored entry with last-set values
       }
     } catch { /* corrupt/absent resume state — start fresh */ }
@@ -76,11 +82,11 @@ export default function Session({ user, navigate, menuBtn }) {
     if (!hydrated.current) return
     if (session) {
       localStorage.setItem(RESUME_KEY, JSON.stringify({
-        session, logged, exText, weight, reps, setStartAt }))
+        session, logged, exText, weight, reps, setStartAt, sessionNotes, notesOpen }))
     } else {
       localStorage.removeItem(RESUME_KEY)
     }
-  }, [session, logged, exText, weight, reps, setStartAt])
+  }, [session, logged, exText, weight, reps, setStartAt, sessionNotes, notesOpen])
 
   // The picker stores/searches by name; the canonical id is derived from it.
   const exercise = useMemo(
@@ -181,7 +187,10 @@ export default function Session({ user, navigate, menuBtn }) {
       else body.weight_lb = weight
       const r = await post('/sets', body)
       setLogged((l) => [{ ...body, id: r.id, name: exercise?.name, bodyweight: isBw }, ...l])
-      setTimer({ target: r.rest_s, startedAt: Date.now() })
+      // In-plan sets carry a positional rest (within-block vs end-of-block);
+      // off-plan sets fall back to the backend's end-of-block default.
+      const restS = session.plan?.[session.planIdx]?.rest_s ?? r.rest_s
+      setTimer({ target: restS, startedAt: Date.now() })
       setRpe(null)
       if (session.plan) {
         const next = session.planIdx + 1
@@ -228,15 +237,16 @@ export default function Session({ user, navigate, menuBtn }) {
   }
 
   async function endSession() {
-    await post(`/sessions/${session.session_id}/end`)
+    await post(`/sessions/${session.session_id}/end`, { notes: sessionNotes.trim() || undefined })
     setSession(null); setTimer(null); setExText(''); setLogged([])
+    setSessionNotes(''); setNotesOpen(false)
   }
 
   if (!session) {
     const routineList = Object.entries(routines)
     return (
       <>
-        <div className="pagehead">{menuBtn}<h1>Iron Log</h1></div>
+        <div className="pagehead">{menuBtn}<h1>Workout</h1></div>
         <div className="card">
           <button className="big primary" onClick={() => start()}>Start empty workout</button>
         </div>
@@ -272,9 +282,9 @@ export default function Session({ user, navigate, menuBtn }) {
 
   return (
     <>
+      <div className="pagehead">{menuBtn}<h1>Workout</h1></div>
       <div className="card">
         <div className="subtabs">
-          {menuBtn}
           <button className={exTab === 'exercise' ? 'on' : ''} onClick={() => setExTab('exercise')}>Exercise</button>
           <button className={exTab === 'history' ? 'on' : ''} onClick={() => setExTab('history')}>History</button>
           <button className={exTab === 'info' ? 'on' : ''} onClick={() => setExTab('info')}>Info</button>
@@ -338,71 +348,85 @@ export default function Session({ user, navigate, menuBtn }) {
         {exTab === 'history' && (
           !exerciseId
             ? <p className="muted">Pick an exercise on the Exercise tab to see its history.</p>
-            : history.length === 0
-              ? <p className="muted">No history for {exercise?.name} yet.</p>
-              : (
-                <>
-                  {trend.length > 1 && (
-                    <div style={{ height: 200, margin: '6px 0 10px' }}>
-                      <ResponsiveContainer>
-                        <LineChart data={trend}>
-                          <XAxis dataKey="date" {...axis} /><YAxis {...axis} width={44} domain={['auto', 'auto']} />
-                          <Tooltip {...tip} />
-                          <Line type="monotone" dataKey="e1rm" stroke="#3b7dd8" strokeWidth={2} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                  {history.map((s) => (
-                    <div className="entry" key={s.session_id}>
-                      <div>
-                        <button className="linkdate" onClick={() => navigate('history', { session: s.session_id })}>
-                          {s.date}
-                        </button>
-                        <div className="meta">
-                          {s.sets.map((x) => `${x.load_lb}×${x.reps}`).join('  ')}
+            : (
+              <>
+                <h3 className="exhead"><span className="exdot" style={{ background: colorOf(exerciseId) }} />{exercise?.name}</h3>
+                {history.length === 0
+                  ? <p className="muted">No history yet.</p>
+                  : (
+                    <>
+                      {trend.length > 1 && (
+                        <div style={{ height: 200, margin: '6px 0 10px' }}>
+                          <ResponsiveContainer>
+                            <LineChart data={trend}>
+                              <XAxis dataKey="date" {...axis} /><YAxis {...axis} width={44} domain={['auto', 'auto']} />
+                              <Tooltip {...tip} />
+                              <Line type="monotone" dataKey="e1rm" stroke="#3b7dd8" strokeWidth={2} />
+                            </LineChart>
+                          </ResponsiveContainer>
                         </div>
-                      </div>
-                      <div className="load">{s.e1rm_lb} <span className="pill">e1RM</span></div>
-                    </div>
-                  ))}
-                </>
-              )
+                      )}
+                      {history.map((s) => (
+                        <div className="entry" key={s.session_id}>
+                          <div>
+                            <button className="linkdate" onClick={() => navigate('history', { session: s.session_id })}>
+                              {s.date}
+                            </button>
+                            <div className="meta">
+                              {s.sets.map((x) => `${x.load_lb}×${x.reps}`).join('  ')}
+                            </div>
+                          </div>
+                          <div className="load">{s.e1rm_lb} <span className="pill">e1RM</span></div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+              </>
+            )
         )}
 
         {exTab === 'info' && (
           !exerciseId
             ? <p className="muted">Pick an exercise on the Exercise tab to see its notes.</p>
-            : exercise?.notes
-              ? <p className="exnotes">{exercise.notes}</p>
-              : <p className="muted">No notes for {exercise?.name}. Add a <code>notes:</code> key in exercises.yaml.</p>
+            : (
+              <>
+                <h3 className="exhead"><span className="exdot" style={{ background: colorOf(exerciseId) }} />{exercise?.name}</h3>
+                {exercise?.notes
+                  ? <p className="exnotes">{exercise.notes}</p>
+                  : <p className="muted">No notes for {exercise?.name}. Add a <code>notes:</code> key in exercises.yaml.</p>}
+              </>
+            )
         )}
       </div>
 
       {upcoming.length > 0 && (
         <div className="card">
           <div className="upnext-head">
-            <span>Up next</span>
-            {upcoming.length > 1 && (
+            <button className="section-toggle" aria-expanded={!planCollapsed}
+              onClick={() => { setPlanCollapsed((c) => !c); setSwapIdx(null) }}>
+              <span className={`chev ${planCollapsed ? '' : 'open'}`}>▸</span> Plan
+            </button>
+            {!planCollapsed && upcoming.length > 1 && (
               <button className="toggle" onClick={() => { setPlanOpen((o) => !o); setSwapIdx(null) }}>
-                {planOpen ? 'Collapse' : `+${upcoming.length - 1} more`}
+                {planOpen ? 'Less' : `+${upcoming.length - 1} more`}
               </button>
             )}
           </div>
-          {shownUpcoming.map((p, i) => {
+          {!planCollapsed && shownUpcoming.map((p, i) => {
             const idx = session.planIdx + i
             return (
               <div className={`plan-row ${i === 0 ? 'current' : ''}`} key={`up-${idx}`}>
-                {swapIdx === idx ? (
-                  <div className="plan-swap">
+                <div className="plan-main">
+                  <span className="exdot" style={{ background: colorOf(p.exercise_id) }} />
+                  {swapIdx === idx ? (
                     <input list="exlist" autoFocus defaultValue={nameOf(p.exercise_id)}
                       placeholder="swap in an exercise…"
                       onBlur={(e) => applySwap(idx, e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') applySwap(idx, e.target.value) }} />
-                  </div>
-                ) : (
-                  <button className="plan-ex tap" onClick={() => setSwapIdx(idx)}>{nameOf(p.exercise_id)}</button>
-                )}
+                  ) : (
+                    <button className="plan-ex tap" onClick={() => setSwapIdx(idx)}>{nameOf(p.exercise_id)}</button>
+                  )}
+                </div>
                 <span className="muted">
                   {p.block ? `${p.block} · ` : ''}round {p.round}
                 </span>
@@ -414,10 +438,13 @@ export default function Session({ user, navigate, menuBtn }) {
 
       {logged.length > 0 && (
         <div className="card">
-          <h2 style={{ marginTop: 0 }}>This session</h2>
+          <div className="section-head" style={{ marginBottom: 10 }}>Completed</div>
           {logged.map((l) => (
             <div className="entry" key={l.id}>
-              <div className="main exname">{l.name || l.exercise_id}</div>
+              <div className="main exname">
+                <span className="exdot" style={{ background: colorOf(l.exercise_id) }} />
+                {l.name || l.exercise_id}
+              </div>
               {editId === l.id ? (
                 <div className="row" style={{ maxWidth: 240 }}>
                   <input inputMode="decimal" value={editVal.weight} placeholder={WEIGHT_UNIT}
@@ -441,6 +468,19 @@ export default function Session({ user, navigate, menuBtn }) {
           ))}
         </div>
       )}
+
+      <div className="card">
+        <button className="section-toggle" aria-expanded={notesOpen}
+          onClick={() => setNotesOpen((o) => !o)}>
+          <span className={`chev ${notesOpen ? 'open' : ''}`}>▸</span> Session notes
+          {!notesOpen && sessionNotes.trim() && <span className="notes-dot" />}
+        </button>
+        {notesOpen && (
+          <textarea className="notes-area" rows={4} value={sessionNotes}
+            placeholder="How did the session go? Energy, aches, PRs…"
+            onChange={(e) => setSessionNotes(e.target.value)} />
+        )}
+      </div>
 
       <button className="big danger" onClick={endSession}>Finish workout</button>
 

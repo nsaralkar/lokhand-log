@@ -34,3 +34,7 @@ export const MUSCLE_COLORS = {
   hamstrings: '#7bc47f', glutes: '#9b59b6', biceps: '#5dade2', triceps: '#ec7063',
   calves: '#48c9b0', core: '#95a5a6',
 }
+
+// The dot color that subtly tags an exercise in any list, keyed by its primary
+// muscle so the same movement reads the same everywhere. Unknown -> neutral.
+export const exColor = (primary) => MUSCLE_COLORS[primary] || '#7e8894'

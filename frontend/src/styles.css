@@ -1,4 +1,4 @@
-/* Iron Log — design tokens
+/* Lokhand Log — design tokens
    Built for a dim garage and sweaty thumbs: softened graphite surfaces (a few
    notches lighter than pure black), one amber accent, big condensed numerals
    (the signature), >=48px tap targets.
@@ -111,18 +111,46 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .plan-row.done .plan-ex { text-decoration: line-through; }
 .plan-row.current { border-left-color: var(--accent); }
 .plan-row.current .plan-ex { color: var(--accent); }
+/* Dot + name grouped on the left so the color tag stays with the exercise */
+.plan-row .plan-main { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 /* Tappable exercise name (swap a set on the fly) + inline picker */
 .plan-row .plan-ex.tap { background: none; border: none; padding: 0; min-height: 0;
   color: inherit; font: inherit; font-weight: 500; text-align: left;
   text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
-.plan-row .plan-swap { flex: 1; }
-.plan-row .plan-swap input { min-height: 38px; padding: 6px 10px; }
+.plan-row .plan-main input { flex: 1; min-height: 38px; padding: 6px 10px; }
+
+/* Subtle per-exercise color tag: a small dot keyed to the primary muscle,
+   shown wherever exercises are listed (plan, completed, history, PRs). */
+.exdot { flex: 0 0 auto; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  vertical-align: middle; margin-right: 8px; }
+
+/* Exercise name header on the History / Info subtabs */
+.exhead { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; font-size: 18px; }
+.exhead .exdot { margin-right: 0; }
+
+/* Home hub: one full-width launcher button per page */
+.home-links { display: flex; flex-direction: column; gap: 10px; }
 
 /* "Up next" card header with the expand/collapse toggle */
-.upnext-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+.upnext-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .upnext-head .toggle { min-height: 32px; padding: 0 8px; font-size: 12px; background: none;
   border: none; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Section titles (Plan / Completed / Session notes) share the exercise-subtab
+   label look: condensed, uppercase, muted. Some are collapse toggles. */
+.section-head, .section-toggle {
+  font-family: var(--font-display); font-size: 16px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);
+}
+.section-toggle { display: inline-flex; align-items: center; gap: 9px; text-align: left;
+  background: none; border: none; padding: 0; min-height: 40px; }
+/* Disclosure triangle — sized up and in full-ink so the collapse is obvious */
+.section-toggle .chev { display: inline-block; width: 16px; text-align: center;
+  font-size: 15px; line-height: 1; color: var(--ink); transition: transform 0.15s ease; }
+.section-toggle .chev.open { transform: rotate(90deg); }
+/* Amber pip flags unsaved notes tucked behind a collapsed header */
+.notes-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.notes-area { margin-top: 8px; resize: vertical; min-height: 88px; line-height: 1.45; }
 
 /* Exercise picker: text field with a small + button to its right */
 .ex-picker { display: flex; gap: 8px; }
@@ -150,26 +178,26 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .modal .row button { min-height: 52px; }
 
 /* Hamburger drawer trigger — rendered inline by each page (no separate top bar),
-   pushed to the right edge to sit beside the right-side slide-in drawer. */
+   at the left edge to sit beside the left-side slide-in drawer. */
 .hamburger {
-  flex: 0 0 auto; order: 9; margin-left: auto;
+  flex: 0 0 auto;
   min-height: 44px; width: 40px; padding: 0; font-size: 22px; line-height: 1;
   background: none; border: none; color: var(--ink);
 }
-/* Page header row: title / back button on the left, hamburger on the right */
+/* Page header (nav) row: hamburger on the left, then the page title */
 .pagehead { display: flex; align-items: center; gap: 4px; }
 .pagehead h1 { margin: 0; }
-/* On the workout card the hamburger shares the subtabs line; nudge it to the baseline */
-.subtabs .hamburger { min-height: 40px; width: 34px; margin-right: -6px; padding-bottom: 8px; }
+/* Session-detail header: name + summary on the left, edit affordance on the right */
+.sess-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 
-/* Right slide-in drawer nav */
+/* Left slide-in drawer nav */
 .scrim { position: fixed; inset: 0; z-index: 35; background: rgba(0, 0, 0, 0.5); }
 nav.drawer {
-  position: fixed; top: 0; right: 0; bottom: 0; z-index: 40; width: 240px; max-width: 82vw;
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 40; width: 240px; max-width: 82vw;
   display: flex; flex-direction: column; gap: 4px; padding: 12px;
   padding-top: calc(12px + env(safe-area-inset-top));
-  background: var(--surface); border-left: 1px solid var(--line);
-  transform: translateX(100%); transition: transform 0.2s ease;
+  background: var(--surface); border-right: 1px solid var(--line);
+  transform: translateX(-100%); transition: transform 0.2s ease;
 }
 nav.drawer.open { transform: translateX(0); }
 .drawer-head { font-family: var(--font-display); text-transform: uppercase; font-size: 22px; font-weight: 700; letter-spacing: 0.04em; margin: 6px 8px 14px; }

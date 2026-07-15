@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, Legend,
 } from 'recharts'
-import { get, WEIGHT_UNIT, MUSCLE_COLORS } from '../api'
+import { get, WEIGHT_UNIT, MUSCLE_COLORS, exColor } from '../api'
 
 const axis = { stroke: '#8a94a2', fontSize: 12 }
 const tip = { contentStyle: { background: '#262c36', border: '1px solid #3d4653', borderRadius: 8, color: '#edeff2' } }
@@ -87,14 +87,17 @@ export default function Trends({ menuBtn }) {
         <table>
           <thead><tr><th>Exercise</th><th>Best set</th><th>e1RM</th><th>Date</th></tr></thead>
           <tbody>
-            {prs.map((p) => (
+            {prs.map((p) => {
+              const ex = exercises.find((e) => e.id === p.exercise_id)
+              return (
               <tr key={p.exercise_id}>
-                <td>{exercises.find((e) => e.id === p.exercise_id)?.name || p.exercise_id}</td>
+                <td><span className="exdot" style={{ background: exColor(ex?.primary) }} />{ex?.name || p.exercise_id}</td>
                 <td>{p.load_lb}×{p.reps}</td>
                 <td>{p.e1rm_lb}</td>
                 <td className="muted">{p.date}</td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>

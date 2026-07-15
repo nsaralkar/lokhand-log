@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
 import { get } from './api'
 import Login from './pages/Login'
+import Home from './pages/Home'
 import Session from './pages/Session'
 import History from './pages/History'
 import Trends from './pages/Trends'
 import Metrics from './pages/Metrics'
 
-const TABS = { workout: Session, history: History, trends: Trends, body: Metrics }
+const TABS = { home: Home, workout: Session, history: History, trends: Trends, body: Metrics }
 
 export default function App() {
   const [user, setUser] = useState(undefined) // undefined = checking
-  const [tab, setTab] = useState('workout')
+  const [tab, setTab] = useState('home')
   const [menu, setMenu] = useState(false)
   const [pendingSession, setPendingSession] = useState(null) // hand-off to History
 
@@ -41,7 +42,7 @@ export default function App() {
     <>
       {menu && <div className="scrim" onClick={() => setMenu(false)} />}
       <nav className={`drawer ${menu ? 'open' : ''}`} aria-hidden={!menu}>
-        <div className="drawer-head">Iron Log</div>
+        <div className="drawer-head">Lokhand Log</div>
         {Object.keys(TABS).map((t) => (
           <button key={t} className={tab === t ? 'on' : ''} onClick={() => pick(t)}>{t}</button>
         ))}

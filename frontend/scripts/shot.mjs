@@ -65,8 +65,11 @@ if (await page.getByText('Log in').count()) {
   await pause(800)
 }
 
-// 2. Workout start (empty + templates).
-await shot('02-start')
+// 2. Home hub, then into the Workout page.
+await shot('02-home')
+await page.getByRole('button', { name: 'Workout', exact: true }).click()
+await pause(400)
+await shot('02b-start')
 
 // 3. Empty logging screen.
 const startBtn = page.getByText('Start empty workout')
@@ -80,11 +83,9 @@ if (await startBtn.count()) {
   await pause(900)
   await shot('04-autofill')
 
-  // 5 & 6. History and Trend subtabs (per current exercise).
+  // 5. History subtab (per current exercise): e1RM plot then session list.
   await page.getByRole('button', { name: 'History', exact: true }).click()
-  await pause(600); await shot('05-history')
-  await page.getByRole('button', { name: 'Trend', exact: true }).click()
-  await pause(700); await shot('06-trend')
+  await pause(700); await shot('05-history')
   await page.getByRole('button', { name: 'Exercise', exact: true }).click()
   await pause(200)
 

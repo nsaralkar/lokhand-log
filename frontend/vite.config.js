@@ -8,8 +8,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Iron Log',
-        short_name: 'IronLog',
+        name: 'Lokhand Log',
+        short_name: 'Lokhand',
         description: 'Self-hosted fitness log',
         theme_color: '#14171c',
         background_color: '#14171c',

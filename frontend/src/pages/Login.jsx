@@ -13,7 +13,7 @@ export default function Login({ onLogin }) {
 
   return (
     <div style={{ marginTop: '20vh' }}>
-      <h1 style={{ textAlign: 'center' }}>Iron Log</h1>
+      <h1 style={{ textAlign: 'center' }}>Lokhand Log</h1>
       <div className="card">
         <label>Username</label>
         <input autoCapitalize="none" value={username} onChange={(e) => setUsername(e.target.value)} />

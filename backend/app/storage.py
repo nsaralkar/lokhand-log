@@ -115,6 +115,23 @@ def delete_entry(base: Path, entry_id: str) -> None:
     git_commit(f"fix: delete entry {entry_id}")
 
 
+def delete_session(base: Path, session_id: str) -> int:
+    """Remove every entry (start/sets/cardio/end) belonging to a session. Returns
+    the number of entries removed (0 = session not found). Scans all monthly
+    files since a session can, rarely, straddle a month boundary."""
+    removed = 0
+    with _LOCK:
+        for path in sorted(base.glob("*.jsonl")):
+            rows = _read_jsonl(path)
+            kept = [r for r in rows if r.get("session_id") != session_id]
+            if len(kept) != len(rows):
+                removed += len(rows) - len(kept)
+                _write_jsonl_atomic(path, kept)
+    if removed:
+        git_commit(f"fix: delete session {session_id}")
+    return removed
+
+
 # ---------- git ops ----------
 
 def git_commit(message: str, push: bool = False) -> str:

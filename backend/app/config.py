@@ -15,6 +15,13 @@ SESSION_MAX_AGE_S = 30 * 24 * 3600
 # A workout session with no new entries for this long is considered ended.
 SESSION_IDLE_TIMEOUT_S = int(os.environ.get("FITNESS_SESSION_IDLE_S", 3 * 3600))
 
+# Global default rest (seconds), two phases: a short rest between exercises
+# inside a block (superset transitions) and a longer rest at the end of a block
+# — which is also the rest between straight sets. A single-exercise block has no
+# "within" transitions, so every one of its rests is the end-of-block rest.
+DEFAULT_REST_WITHIN_BLOCK_S = int(os.environ.get("FITNESS_REST_WITHIN_S", 10))
+DEFAULT_REST_END_BLOCK_S = int(os.environ.get("FITNESS_REST_END_S", 60))
+
 # Fixed muscle-group taxonomy. Exercises must use these for `primary`/`secondary`.
 MUSCLE_GROUPS = [
     "chest", "back", "shoulders", "biceps", "triceps",

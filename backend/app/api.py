@@ -111,9 +111,14 @@ def start_session(body: SessionStartBody, user=Depends(current_user)):
     return {"session_id": entry.session_id, "plan": plan}
 
 
+class SessionEndBody(BaseModel):
+    notes: Optional[str] = None            # freeform notes for the whole session
+
+
 @router.post("/sessions/{session_id}/end")
-def end_session(session_id: str, user=Depends(current_user)):
-    entry = SessionEnd(session_id=session_id)
+def end_session(session_id: str, body: SessionEndBody = SessionEndBody(),
+                user=Depends(current_user)):
+    entry = SessionEnd(session_id=session_id, notes=body.notes)
     storage.append_entry(config.workouts_dir(user["username"]),
                          entry.model_dump(exclude_none=True))
     storage.git_commit(f"log: session {session_id} ({user['username']})")
@@ -131,6 +136,16 @@ def session_detail(session_id: str, user=Depends(current_user)):
     return analytics.session_summary(user["username"], session_id)
 
 
+@router.delete("/sessions/{session_id}")
+def remove_session(session_id: str, user=Depends(current_user)):
+    """Delete a whole session and all its entries. The git commit is the audit
+    trail (individual set edits/deletes remain per-entry via /entries/{id})."""
+    removed = storage.delete_session(config.workouts_dir(user["username"]), session_id)
+    if not removed:
+        raise HTTPException(404, "session not found")
+    return {"ok": True, "removed": removed}
+
+
 @router.post("/sets")
 def log_set(entry: SetEntry, user=Depends(current_user)):
     ex = load_exercises().get(entry.exercise_id)
@@ -138,7 +153,9 @@ def log_set(entry: SetEntry, user=Depends(current_user)):
         raise HTTPException(400, f"unknown exercise: {entry.exercise_id}")
     storage.append_entry(config.workouts_dir(user["username"]),
                          entry.model_dump(exclude_none=True))
-    return {"id": entry.id, "ts": entry.ts, "rest_s": ex.default_rest_s}
+    # Off-plan / empty-workout fallback: the end-of-block default. In-plan sets
+    # carry their own positional rest_s (from expand_day); the client prefers it.
+    return {"id": entry.id, "ts": entry.ts, "rest_s": config.DEFAULT_REST_END_BLOCK_S}
 
 
 @router.post("/cardio")

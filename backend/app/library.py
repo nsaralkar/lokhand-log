@@ -84,14 +84,21 @@ def expand_day(day: dict) -> list[dict]:
     """Flatten a routine day's blocks into an ordered list of planned sets. Every
     block is an `exercises` list run for `rounds` rounds — one exercise is a
     straight block, more than one is a superset/circuit. Each round interleaves
-    the list, which maps directly onto consecutive SetEntries at log time."""
+    the list, which maps directly onto consecutive SetEntries at log time.
+
+    Each planned set also carries `rest_s`: the short within-block rest when
+    another exercise still follows in the same round, else the end-of-block rest
+    (so single-exercise blocks always rest the full end-of-block time)."""
     plan: list[dict] = []
     for block in day.get("blocks", []):
         exs = block.get("exercises") or []
         if not exs:
             continue
+        last = len(exs) - 1
         for rnd in range(block.get("rounds", 3)):
-            for ex in exs:
-                plan.append({"exercise_id": ex,
-                             "block": block.get("label"), "round": rnd + 1})
+            for i, ex in enumerate(exs):
+                rest = (config.DEFAULT_REST_WITHIN_BLOCK_S if i < last
+                        else config.DEFAULT_REST_END_BLOCK_S)
+                plan.append({"exercise_id": ex, "block": block.get("label"),
+                             "round": rnd + 1, "rest_s": rest})
     return plan
