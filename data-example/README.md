@@ -7,7 +7,7 @@ This directory is the SHAPE of your private data repo. To create yours:
     git remote add backup <your-local-remote>   # see docs/DEPLOY.md
 
 All contents here are FAKE demo data (user: demo / password: demo).
-Never commit real data to the public fitness-app repo.
+Never commit real data to the public lokhand-log repo.
 
 All units are native imperial (lb, in, mi) — no conversion happens anywhere.
 

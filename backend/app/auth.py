@@ -36,12 +36,12 @@ def make_session_token(username: str) -> str:
     return _serializer.dumps({"u": username})
 
 
-def current_user(fitness_session: str | None = Cookie(default=None)) -> dict:
+def current_user(lokhand_log_session: str | None = Cookie(default=None)) -> dict:
     """FastAPI dependency. Raises 401 unless a valid session cookie is present."""
-    if not fitness_session:
+    if not lokhand_log_session:
         raise HTTPException(401, "not logged in")
     try:
-        data = _serializer.loads(fitness_session, max_age=config.SESSION_MAX_AGE_S)
+        data = _serializer.loads(lokhand_log_session, max_age=config.SESSION_MAX_AGE_S)
     except BadSignature:
         raise HTTPException(401, "invalid session")
     user = _load_users().get(data["u"])

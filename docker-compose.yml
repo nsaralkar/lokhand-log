@@ -1,10 +1,10 @@
-# Deploy: DATA_DIR=/srv/fitness-data FITNESS_SECRET_KEY=$(openssl rand -hex 32) docker compose up -d --build
+# Deploy: DATA_DIR=/srv/fitness-data LOKHAND_LOG_SECRET_KEY=$(openssl rand -hex 32) docker compose up -d --build
 services:
   backend:
     build: ./backend
     environment:
-      FITNESS_DATA_DIR: /srv/data
-      FITNESS_SECRET_KEY: ${FITNESS_SECRET_KEY:?set a real secret}
+      LOKHAND_LOG_DATA_DIR: /srv/data
+      LOKHAND_LOG_SECRET_KEY: ${LOKHAND_LOG_SECRET_KEY:?set a real secret}
     volumes:
       - ${DATA_DIR:?path to your private fitness-data repo}:/srv/data
     restart: unless-stopped
@@ -13,8 +13,8 @@ services:
     build: ./backend
     command: ["uv", "run", "python", "mcp_server.py"]
     environment:
-      FITNESS_DATA_DIR: /srv/data
-      FITNESS_MCP_USER: ${MCP_USER:-demo}
+      LOKHAND_LOG_DATA_DIR: /srv/data
+      LOKHAND_LOG_MCP_USER: ${MCP_USER:-demo}
     volumes:
       - ${DATA_DIR}:/srv/data:ro   # MCP server is read-only by mount, not just by code
     restart: unless-stopped

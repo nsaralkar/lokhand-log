@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def client(tmp_path, monkeypatch):
     data = tmp_path / "data"
     shutil.copytree(REPO_ROOT / "data-example", data)
-    monkeypatch.setenv("FITNESS_DATA_DIR", str(data))
+    monkeypatch.setenv("LOKHAND_LOG_DATA_DIR", str(data))
     from app import config
     config.DATA_DIR = data  # config resolves env at import; force for tests
     from fastapi.testclient import TestClient

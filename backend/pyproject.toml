@@ -1,5 +1,5 @@
 [project]
-name = "fitness-backend"
+name = "lokhand-log-backend"
 version = "0.1.0"
 description = "Plain-text fitness log backend: FastAPI + JSONL-in-git + MCP"
 requires-python = ">=3.11"

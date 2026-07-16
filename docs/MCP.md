@@ -12,7 +12,7 @@ http://<vm-or-tailnet-host>:8080/mcp     (via Caddy)
 http://<host>:8765/mcp                   (direct, local debug)
 ```
 
-Claude Code: `claude mcp add --transport http fitness http://<host>:8080/mcp`
+Claude Code: `claude mcp add --transport http lokhand-log http://<host>:8080/mcp`
 
 ## Tools
 

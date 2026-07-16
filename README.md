@@ -1,4 +1,4 @@
-# fitness-app
+# lokhand-log
 
 Self-hosted fitness log + health metrics tracker, designed so an LLM can act as a
 fully-informed fitness advisor over your entire history.
@@ -22,7 +22,7 @@ fully-informed fitness advisor over your entire history.
 
 | Repo | Visibility | Contents |
 |---|---|---|
-| `fitness-app` (this) | public | code only, zero PII, `data-example/` has fake demo data |
+| `lokhand-log` (this) | public | code only, zero PII, `data-example/` has fake demo data |
 | `fitness-data` | private | your actual data; mounted into the app; pushes to your own local git remote |
 
 ## Quickstart (local debug, vanilla Ubuntu)
@@ -31,11 +31,11 @@ Requires [uv](https://docs.astral.sh/uv/) and Node 20+.
 
 ```bash
 # 1. Make a data repo from the example
-cp -r data-example ../fitness-data && cd ../fitness-data && git init && git add -A && git commit -m init && cd ../fitness-app
+cp -r data-example ../fitness-data && cd ../fitness-data && git init && git add -A && git commit -m init && cd ../lokhand-log
 
 # 2. Backend (FastAPI on :8000)
 cd backend
-FITNESS_DATA_DIR=../../fitness-data uv run uvicorn app.main:app --reload
+LOKHAND_LOG_DATA_DIR=../../fitness-data uv run uvicorn app.main:app --reload
 
 # 3. Frontend (Vite dev server on :5173, proxies /api to :8000)
 cd frontend
@@ -48,7 +48,7 @@ Log in as `demo` / `demo` (change immediately; see `docs/DEPLOY.md`).
 
 ```bash
 cd backend
-FITNESS_DATA_DIR=../../fitness-data uv run python mcp_server.py   # HTTP on :8765
+LOKHAND_LOG_DATA_DIR=../../fitness-data uv run python mcp_server.py   # HTTP on :8765
 ```
 
 Then add to Claude Desktop / Claude Code as a streamable-HTTP MCP server at

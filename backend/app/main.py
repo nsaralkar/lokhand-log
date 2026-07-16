@@ -1,5 +1,5 @@
 """App entrypoint. Local debug:
-    FITNESS_DATA_DIR=../../fitness-data uv run uvicorn app.main:app --reload
+    LOKHAND_LOG_DATA_DIR=../../fitness-data uv run uvicorn app.main:app --reload
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from .api import router
 from .storage import daily_commit
 
-log = logging.getLogger("fitness")
+log = logging.getLogger("lokhand-log")
 
 
 async def _daily_commit_loop():
@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
     task.cancel()
 
 
-app = FastAPI(title="fitness-app", lifespan=lifespan)
+app = FastAPI(title="lokhand-log", lifespan=lifespan)
 app.include_router(router)
 
 

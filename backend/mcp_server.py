@@ -3,12 +3,12 @@
 Exposes the SAME analytics functions the charts use, plus raw-history access.
 Run over streamable HTTP for LAN/Tailscale use:
 
-    FITNESS_DATA_DIR=../../fitness-data FITNESS_MCP_USER=rachna uv run python mcp_server.py
+    LOKHAND_LOG_DATA_DIR=../../fitness-data LOKHAND_LOG_MCP_USER=rachna uv run python mcp_server.py
 
 Claude Desktop / Claude Code config: http://<host>:8765/mcp
 
 Scope note: the MCP server is read-only and pinned to one user via
-FITNESS_MCP_USER — it does not use the web app's auth. Run one instance per
+LOKHAND_LOG_MCP_USER — it does not use the web app's auth. Run one instance per
 user if the family wants separate advisors.
 """
 from __future__ import annotations
@@ -21,10 +21,10 @@ from app import analytics, config
 from app.library import load_exercises, load_routines
 from app.storage import iter_entries
 
-USER = os.environ.get("FITNESS_MCP_USER", "demo")
+USER = os.environ.get("LOKHAND_LOG_MCP_USER", "demo")
 
 mcp = FastMCP(
-    "fitness-data",
+    "lokhand-log",
     instructions=(
         "Fitness history for one athlete. All units are imperial: loads in lb, "
         "distances in mi, dimensions in in. Tonnage = load x reps, work sets only. "

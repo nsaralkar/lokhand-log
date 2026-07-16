@@ -24,7 +24,7 @@ trap cleanup EXIT
 cp -r "$APP/data-example" "$TMP/data"
 
 echo "starting throwaway backend on :$API_PORT (data: $TMP/data)"
-( cd "$APP/backend" && VIRTUAL_ENV= FITNESS_DATA_DIR="$TMP/data" \
+( cd "$APP/backend" && VIRTUAL_ENV= LOKHAND_LOG_DATA_DIR="$TMP/data" \
     uv run uvicorn app.main:app --port "$API_PORT" --log-level warning ) &
 
 echo "starting demo frontend on :$WEB_PORT"

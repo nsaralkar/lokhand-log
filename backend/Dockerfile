@@ -6,6 +6,6 @@ COPY pyproject.toml ./
 RUN uv sync --no-dev
 COPY app ./app
 COPY mcp_server.py ./
-ENV FITNESS_DATA_DIR=/srv/data
+ENV LOKHAND_LOG_DATA_DIR=/srv/data
 EXPOSE 8000 8765
 CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
