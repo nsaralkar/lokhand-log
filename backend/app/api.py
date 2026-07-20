@@ -217,6 +217,11 @@ def volume(bucket: str = "week", muscle: Optional[str] = None,
     return analytics.volume_over_time(user["username"], bucket, muscle, exercise_id)
 
 
+@router.get("/analytics/session-volume")
+def session_volume(user=Depends(current_user)):
+    return analytics.session_volumes(user["username"])
+
+
 @router.get("/analytics/muscle-volume")
 def muscle_volume(weeks: int = 8, user=Depends(current_user)):
     return {"muscle_groups": config.MUSCLE_GROUPS,

@@ -62,6 +62,23 @@ def volume_over_time(username: str, bucket: str = "week",
     return [{"bucket": k, "volume_lb": round(v, 1)} for k, v in sorted(buckets.items())]
 
 
+def session_volumes(username: str, limit: int = 60) -> list[dict]:
+    """Total tonnage (load x reps, lb) per workout session, oldest→newest — the
+    per-workout view that complements the weekly bucket."""
+    bw = latest_bodyweight_lb(username)
+    starts: dict[str, str] = {}
+    vol: dict[str, float] = defaultdict(float)
+    for r in iter_entries(config.workouts_dir(username)):
+        if r["type"] == "session_start":
+            starts[r["session_id"]] = r["ts"]
+        elif r.get("type") == "set" and not r.get("warmup"):
+            vol[r.get("session_id", "")] += _set_load_lb(r, bw) * r["reps"]
+    out = [{"session_id": sid, "date": starts[sid][:10], "volume_lb": round(v, 1)}
+           for sid, v in vol.items() if sid in starts]
+    out.sort(key=lambda x: starts[x["session_id"]])
+    return out[-limit:]
+
+
 def muscle_group_volume(username: str, weeks: int = 8) -> list[dict]:
     """Weekly tonnage split by primary muscle group — the balance view."""
     exercises = load_exercises()

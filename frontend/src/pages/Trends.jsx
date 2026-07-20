@@ -10,15 +10,19 @@ const tip = { contentStyle: { background: '#262c36', border: '1px solid #3d4653'
 
 export default function Trends({ menuBtn }) {
   const [volume, setVolume] = useState([])
+  const [sessVol, setSessVol] = useState([])
   const [muscle, setMuscle] = useState({ muscle_groups: [], data: [] })
   const [prs, setPrs] = useState([])
   const [exercises, setExercises] = useState([])
   const [exId, setExId] = useState('')
   const [prog, setProg] = useState([])
+  const [progSessions, setProgSessions] = useState([])
 
   useEffect(() => {
     get('/analytics/volume').then((v) =>
       setVolume(v.map((d) => ({ ...d, volume: d.volume_lb }))))
+    get('/analytics/session-volume').then((v) =>
+      setSessVol(v.map((d) => ({ ...d, volume: d.volume_lb }))))
     get('/analytics/muscle-volume').then((m) =>
       setMuscle({ ...m, data: m.data.map((row) => {
         const out = { bucket: row.bucket }
@@ -30,9 +34,11 @@ export default function Trends({ menuBtn }) {
   }, [])
 
   useEffect(() => {
-    if (!exId) return setProg([])
-    get(`/analytics/exercises/${exId}/progression`).then((p) =>
-      setProg(p.sessions.map((s) => ({ date: s.date, e1rm: s.e1rm_lb }))))
+    if (!exId) { setProg([]); setProgSessions([]); return }
+    get(`/analytics/exercises/${exId}/progression`).then((p) => {
+      setProg(p.sessions.map((s) => ({ date: s.date, e1rm: s.e1rm_lb })))
+      setProgSessions([...p.sessions].reverse())  // most recent first
+    })
   }, [exId])
 
   return (
@@ -47,6 +53,17 @@ export default function Trends({ menuBtn }) {
             <Tooltip {...tip} />
             <Line type="monotone" dataKey="volume" stroke="#ffb020" strokeWidth={2} dot={false} />
           </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      <h2>Workout volume ({WEIGHT_UNIT}/session)</h2>
+      <div className="card" style={{ height: 220 }}>
+        <ResponsiveContainer>
+          <BarChart data={sessVol}>
+            <XAxis dataKey="date" {...axis} /><YAxis {...axis} width={48} />
+            <Tooltip {...tip} />
+            <Bar dataKey="volume" fill="#ffb020" />
+          </BarChart>
         </ResponsiveContainer>
       </div>
 
@@ -69,7 +86,7 @@ export default function Trends({ menuBtn }) {
           <option value="">choose exercise…</option>
           {exercises.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
-        {prog.length > 0 && (
+        {prog.length > 1 && (
           <div style={{ height: 200, marginTop: 12 }}>
             <ResponsiveContainer>
               <LineChart data={prog}>
@@ -80,6 +97,16 @@ export default function Trends({ menuBtn }) {
             </ResponsiveContainer>
           </div>
         )}
+        {progSessions.map((s) => (
+          <div className="entry" key={s.session_id}>
+            <div>
+              <div className="main">{s.date}</div>
+              <div className="meta">{s.sets.map((x) => `${x.load_lb}×${x.reps}`).join('  ')}</div>
+            </div>
+            <div className="load">{s.e1rm_lb} <span className="pill">e1RM</span></div>
+          </div>
+        ))}
+        {exId && !progSessions.length && <p className="muted">No history yet.</p>}
       </div>
 
       <h2>PRs</h2>
