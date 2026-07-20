@@ -15,11 +15,15 @@ SESSION_MAX_AGE_S = 30 * 24 * 3600
 # A workout session with no new entries for this long is considered ended.
 SESSION_IDLE_TIMEOUT_S = int(os.environ.get("LOKHAND_LOG_SESSION_IDLE_S", 3 * 3600))
 
-# Global default rest (seconds), two phases: a short rest between exercises
-# inside a block (superset transitions) and a longer rest at the end of a block
-# — which is also the rest between straight sets. A single-exercise block has no
-# "within" transitions, so every one of its rests is the end-of-block rest.
+# Global default rest (seconds), three phases within a block:
+#   WITHIN  — between exercises inside one round (superset/circuit transitions)
+#   BETWEEN — after finishing a round, before the next round (also between the
+#             straight sets of a single-exercise block)
+#   END     — after the final round, before moving on to the next block
+# A routine block can override any of these in its YAML (rest_within_s,
+# rest_between_rounds_s, rest_end_s, or a block-wide rest_s).
 DEFAULT_REST_WITHIN_BLOCK_S = int(os.environ.get("LOKHAND_LOG_REST_WITHIN_S", 10))
+DEFAULT_REST_BETWEEN_BLOCK_S = int(os.environ.get("LOKHAND_LOG_REST_BETWEEN_S", 60))
 DEFAULT_REST_END_BLOCK_S = int(os.environ.get("LOKHAND_LOG_REST_END_S", 60))
 
 # Fixed muscle-group taxonomy. Exercises must use these for `primary`/`secondary`.

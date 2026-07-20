@@ -87,17 +87,32 @@ days:
       - label: shoulder finisher              # >1 exercise -> superset/circuit
         rounds: 3
         exercises: [lateral_raise_db, pullup]
+        rest_within_s: 15                      # optional rest overrides (seconds)
+        rest_between_rounds_s: 90
   - name: Lower Day
     blocks:
       - exercises: [goblet_squat_db]
         rounds: 3
+        rest_s: 150                            # one value overrides every phase
 ```
 
-A block has just three keys: `exercises` (the list, always), `rounds` (how many
-times to run through the list, default 3), and optional `label`. One exercise is
-a straight block; more than one is a superset/circuit. There is no `type` key,
-and reps are logged as performed rather than prescribed. If a file omits `name`,
-its filename (without `.yaml`) is used.
+A block's required keys are `exercises` (the list, always) and — optionally —
+`rounds` (times through the list, default 3) and `label`. One exercise is a
+straight block; more than one is a superset/circuit. There is no `type` key, and
+reps are logged as performed rather than prescribed. If a file omits `name`, its
+filename (without `.yaml`) is used.
+
+**Rest** is picked per set from three phases and can be tuned globally (env
+`LOKHAND_LOG_REST_WITHIN_S` / `_BETWEEN_S` / `_END_S`) or per block in the YAML:
+
+| Phase | When | Global default | Block override |
+|---|---|---|---|
+| within | between exercises inside one round | 10s | `rest_within_s` |
+| between | after a round, before the next | 60s | `rest_between_rounds_s` |
+| end | after the final round | 60s | `rest_end_s` |
+
+A block-wide `rest_s` overrides all three at once; a phase key overrides just
+that phase.
 
 Routines are plans; logging expands the chosen day into ordinary `set` entries.
 Substituting an exercise mid-session edits only that session's plan — the

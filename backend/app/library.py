@@ -86,19 +86,31 @@ def expand_day(day: dict) -> list[dict]:
     straight block, more than one is a superset/circuit. Each round interleaves
     the list, which maps directly onto consecutive SetEntries at log time.
 
-    Each planned set also carries `rest_s`: the short within-block rest when
-    another exercise still follows in the same round, else the end-of-block rest
-    (so single-exercise blocks always rest the full end-of-block time)."""
+    Each planned set also carries `rest_s`, picked from the set's position:
+    the within-block rest when another exercise follows in the same round, the
+    between-rounds rest after a round finishes with more rounds to go, else the
+    end-of-block rest. A block's YAML may override any phase (rest_within_s,
+    rest_between_rounds_s, rest_end_s) or all at once (rest_s)."""
     plan: list[dict] = []
     for block in day.get("blocks", []):
         exs = block.get("exercises") or []
         if not exs:
             continue
+
+        def rest_of(key: str, default: int) -> int:
+            v = block.get(key, block.get("rest_s"))
+            return default if v is None else int(v)
+
         last = len(exs) - 1
-        for rnd in range(block.get("rounds", 3)):
+        rounds = block.get("rounds", 3)
+        for rnd in range(rounds):
             for i, ex in enumerate(exs):
-                rest = (config.DEFAULT_REST_WITHIN_BLOCK_S if i < last
-                        else config.DEFAULT_REST_END_BLOCK_S)
+                if i < last:
+                    rest = rest_of("rest_within_s", config.DEFAULT_REST_WITHIN_BLOCK_S)
+                elif rnd < rounds - 1:
+                    rest = rest_of("rest_between_rounds_s", config.DEFAULT_REST_BETWEEN_BLOCK_S)
+                else:
+                    rest = rest_of("rest_end_s", config.DEFAULT_REST_END_BLOCK_S)
                 plan.append({"exercise_id": ex, "block": block.get("label"),
                              "round": rnd + 1, "rest_s": rest})
     return plan
