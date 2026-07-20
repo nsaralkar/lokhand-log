@@ -33,8 +33,7 @@ export default function Session({ user, navigate, menuBtn }) {
   const [editVal, setEditVal] = useState({ weight: '', reps: '' })
   const [adding, setAdding] = useState(false)  // add-exercise form open
   const [confirmId, setConfirmId] = useState(null) // set pending delete
-  const [planOpen, setPlanOpen] = useState(false)  // plan list: all rows vs. next-only
-  const [planCollapsed, setPlanCollapsed] = useState(false) // whole Plan section hidden
+  const [planCollapsed, setPlanCollapsed] = useState(true) // hide the rows below the current one
   const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned
   const [sessionNotes, setSessionNotes] = useState('') // freeform notes for the session
   const [notesOpen, setNotesOpen] = useState(false)    // session-notes box expanded
@@ -154,7 +153,7 @@ export default function Session({ user, navigate, menuBtn }) {
   async function start(routine, day) {
     const r = await post('/sessions/start', { routine, day })
     setSession({ session_id: r.session_id, plan: r.plan, planIdx: 0 })
-    setLogged([]); setExTab('exercise'); setPlanOpen(false); setSwapIdx(null)
+    setLogged([]); setExTab('exercise'); setPlanCollapsed(true); setSwapIdx(null)
     setTimer(null); setSetStartAt(Date.now())
     if (r.plan?.length) setExText(nameOf(r.plan[0].exercise_id))
   }
@@ -272,7 +271,8 @@ export default function Session({ user, navigate, menuBtn }) {
 
   const plan = session.plan || []
   const upcoming = plan.slice(session.planIdx)
-  const shownUpcoming = planOpen ? upcoming : upcoming.slice(0, 1)
+  // The current/next set always shows; the chevron reveals the ones below it.
+  const shownUpcoming = planCollapsed ? upcoming.slice(0, 1) : upcoming
   // Rest countdown (the effect clears the timer at zero, so this stays >= 0).
   const remaining = timer ? Math.max(0, timer.target - Math.floor((now - timer.startedAt) / 1000)) : 0
   const cmm = Math.floor(remaining / 60), css = String(remaining % 60).padStart(2, '0')
@@ -403,16 +403,16 @@ export default function Session({ user, navigate, menuBtn }) {
         <div className="card">
           <div className="upnext-head">
             <button className="section-toggle" aria-expanded={!planCollapsed}
+              disabled={upcoming.length < 2}
               onClick={() => { setPlanCollapsed((c) => !c); setSwapIdx(null) }}>
-              <span className={`chev ${planCollapsed ? '' : 'open'}`}>▸</span> Plan
+              <span className={`chev ${planCollapsed ? '' : 'open'}`}
+                style={{ visibility: upcoming.length > 1 ? 'visible' : 'hidden' }}>▸</span> Plan
             </button>
-            {!planCollapsed && upcoming.length > 1 && (
-              <button className="toggle" onClick={() => { setPlanOpen((o) => !o); setSwapIdx(null) }}>
-                {planOpen ? 'Less' : `+${upcoming.length - 1} more`}
-              </button>
+            {upcoming.length > 1 && planCollapsed && (
+              <span className="muted plan-more">+{upcoming.length - 1} more</span>
             )}
           </div>
-          {!planCollapsed && shownUpcoming.map((p, i) => {
+          {shownUpcoming.map((p, i) => {
             const idx = session.planIdx + i
             return (
               <div className={`plan-row ${i === 0 ? 'current' : ''}`} key={`up-${idx}`}>

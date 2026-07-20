@@ -148,6 +148,9 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .section-toggle .chev { display: inline-block; width: 16px; text-align: center;
   font-size: 15px; line-height: 1; color: var(--ink); transition: transform 0.15s ease; }
 .section-toggle .chev.open { transform: rotate(90deg); }
+.section-toggle:disabled { opacity: 1; }
+/* "+N more" hint beside a collapsed Plan header */
+.plan-more { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
 /* Amber pip flags unsaved notes tucked behind a collapsed header */
 .notes-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .notes-area { margin-top: 8px; resize: vertical; min-height: 88px; line-height: 1.45; }
