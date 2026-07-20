@@ -54,6 +54,14 @@ export default function Session({ user, navigate, menuBtn }) {
 
   const nameOf = (id) => exercises.find((e) => e.id === id)?.name || id
   const colorOf = (id) => exColor(exercises.find((e) => e.id === id)?.primary)
+  const isBwOf = (id) => !!exercises.find((e) => e.id === id)?.bodyweight
+
+  // The Completed list is the server's truth, not a client-side copy — so it
+  // always reflects the actual file (incl. edits made directly to the JSONL).
+  const refreshLogged = (sid) =>
+    get(`/sessions/${sid}`)
+      .then((s) => setLogged((s.entries || []).filter((e) => e.type === 'set').reverse()))
+      .catch(() => {})
 
   // Resume a workout left running when we last unmounted (tab switch / reload).
   useEffect(() => {
@@ -61,7 +69,7 @@ export default function Session({ user, navigate, menuBtn }) {
       const saved = JSON.parse(localStorage.getItem(RESUME_KEY) || 'null')
       if (saved?.session) {
         setSession(saved.session)
-        setLogged(saved.logged || [])
+        refreshLogged(saved.session.session_id)
         setExText(saved.exText || '')
         setWeight(saved.weight ?? null)
         setReps(saved.reps ?? 10)
@@ -81,11 +89,11 @@ export default function Session({ user, navigate, menuBtn }) {
     if (!hydrated.current) return
     if (session) {
       localStorage.setItem(RESUME_KEY, JSON.stringify({
-        session, logged, exText, weight, reps, setStartAt, sessionNotes, notesOpen }))
+        session, exText, weight, reps, setStartAt, sessionNotes, notesOpen }))
     } else {
       localStorage.removeItem(RESUME_KEY)
     }
-  }, [session, logged, exText, weight, reps, setStartAt, sessionNotes, notesOpen])
+  }, [session, exText, weight, reps, setStartAt, sessionNotes, notesOpen])
 
   // The picker stores/searches by name; the canonical id is derived from it.
   const exercise = useMemo(
@@ -185,7 +193,8 @@ export default function Session({ user, navigate, menuBtn }) {
       if (isBw) body.added_weight_lb = weight ?? 0
       else body.weight_lb = weight
       const r = await post('/sets', body)
-      setLogged((l) => [{ ...body, id: r.id, name: exercise?.name, bodyweight: isBw }, ...l])
+      setLogged((l) => [{ ...body, id: r.id }, ...l])  // optimistic; reconciled below
+      refreshLogged(session.session_id)
       // In-plan sets carry a positional rest (within-block vs end-of-block);
       // off-plan sets fall back to the backend's end-of-block default.
       const restS = session.plan?.[session.planIdx]?.rest_s ?? r.rest_s
@@ -217,20 +226,20 @@ export default function Session({ user, navigate, menuBtn }) {
   async function saveEdit(l) {
     const p = { reps: Number(editVal.reps) }
     const w = editVal.weight === '' ? null : Number(editVal.weight)
-    if (l.bodyweight) p.added_weight_lb = w ?? 0
+    if (isBwOf(l.exercise_id)) p.added_weight_lb = w ?? 0
     else p.weight_lb = w
     try {
       await patch(`/entries/${l.id}`, p)
-      setLogged((rows) => rows.map((r) => r.id === l.id ? { ...r, ...p } : r))
       setEditId(null)
+      refreshLogged(session.session_id)
     } catch (e) { setErr(e.message) }
   }
 
   async function deleteSet(id) {
     try {
       await del(`/entries/${id}`)
-      setLogged((rows) => rows.filter((r) => r.id !== id))
       if (editId === id) setEditId(null)
+      refreshLogged(session.session_id)
     } catch (e) { setErr(e.message) }
     setConfirmId(null)
   }
@@ -443,7 +452,7 @@ export default function Session({ user, navigate, menuBtn }) {
             <div className="entry" key={l.id}>
               <div className="main exname">
                 <span className="exdot" style={{ background: colorOf(l.exercise_id) }} />
-                {l.name || l.exercise_id}
+                {nameOf(l.exercise_id)}
               </div>
               {editId === l.id ? (
                 <div className="row" style={{ maxWidth: 240 }}>
