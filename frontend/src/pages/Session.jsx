@@ -218,6 +218,30 @@ export default function Session({ user, navigate, menuBtn }) {
       plan: s.plan.map((row, i) => i === idx ? { ...row, exercise_id: ex.id } : row) }))
   }
 
+  // Drop an upcoming set from the in-session plan (routine YAML untouched).
+  function removePlanRow(idx) {
+    setSwapIdx(null)
+    if (idx === session.planIdx) {  // removing the current set: retarget the picker
+      const nx = session.plan[idx + 1]
+      setExText(nx ? nameOf(nx.exercise_id) : '')
+    }
+    setSession((s) => {
+      const plan = s.plan.slice()
+      plan.splice(idx, 1)
+      return { ...s, plan }
+    })
+  }
+
+  // Append a new planned set and open it for picking. rest_s is left null so it
+  // falls back to the backend default when logged.
+  function addPlanRow() {
+    const newIdx = (session.plan || []).length
+    setSession((s) => ({ ...s,
+      plan: [...(s.plan || []), { exercise_id: exerciseId || '', round: 1, rest_s: null }] }))
+    setPlanCollapsed(false)
+    setSwapIdx(newIdx)
+  }
+
   function startEdit(l) {
     setEditId(l.id)
     setEditVal({ weight: l.weight_lb ?? l.added_weight_lb ?? '', reps: l.reps })
@@ -436,12 +460,17 @@ export default function Session({ user, navigate, menuBtn }) {
                     <button className="plan-ex tap" onClick={() => setSwapIdx(idx)}>{nameOf(p.exercise_id)}</button>
                   )}
                 </div>
-                <span className="muted">
-                  {p.block ? `${p.block} · ` : ''}round {p.round}
-                </span>
+                <div className="plan-right">
+                  <span className="muted">
+                    {p.block ? `${p.block} · ` : ''}round {p.round}
+                  </span>
+                  <button className="plan-x" aria-label="Remove from plan"
+                    onClick={() => removePlanRow(idx)}>×</button>
+                </div>
               </div>
             )
           })}
+          <button className="plan-add" onClick={addPlanRow}>＋ add exercise</button>
         </div>
       )}
 

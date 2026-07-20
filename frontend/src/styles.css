@@ -151,6 +151,14 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .section-toggle:disabled { opacity: 1; }
 /* "+N more" hint beside a collapsed Plan header */
 .plan-more { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+/* Plan-row right side: round meta + remove button */
+.plan-right { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.plan-x { min-height: 32px; width: 30px; padding: 0; background: none; border: none;
+  color: var(--muted); font-size: 20px; line-height: 1; }
+/* Append-to-plan footer button */
+.plan-add { margin-top: 8px; width: 100%; min-height: 38px; background: none;
+  border: 1px dashed var(--line); color: var(--muted);
+  font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; }
 /* Amber pip flags unsaved notes tucked behind a collapsed header */
 .notes-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .notes-area { margin-top: 8px; resize: vertical; min-height: 88px; line-height: 1.45; }
