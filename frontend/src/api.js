@@ -38,3 +38,19 @@ export const MUSCLE_COLORS = {
 // The dot color that subtly tags an exercise in any list, keyed by its primary
 // muscle so the same movement reads the same everywhere. Unknown -> neutral.
 export const exColor = (primary) => MUSCLE_COLORS[primary] || '#7e8894'
+
+// Formats one logged/planned set for display regardless of which metric it
+// used — reps×load, a duration, or a distance. Accepts either raw entry shape
+// (weight_lb/added_weight_lb) or resolved progression-set shape (load_lb).
+export const fmtSet = (s) => {
+  if (s.duration_s != null) return fmtDuration(s.duration_s)
+  if (s.distance_mi != null) return `${s.distance_mi} mi`
+  const load = s.load_lb ?? s.weight_lb ?? s.added_weight_lb
+  return `${load ?? 'bw'}×${s.reps}`
+}
+
+// PR/progression score label + formatting: e1RM for reps-based lifts, the raw
+// best duration/distance for holds and carries.
+export const scoreLabel = (metric) => (metric && metric !== 'reps' ? 'best' : 'e1RM')
+export const scoreFmt = (value, metric) =>
+  metric === 'duration' ? fmtDuration(value) : metric === 'distance' ? `${value} mi` : value

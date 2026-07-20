@@ -48,3 +48,31 @@ def test_volume_and_metrics(client):
     client.post("/api/metrics", json={"metric": "bicep_l", "value": 14.0, "unit": "in"})
     series = client.get("/api/metrics/bicep_l").json()
     assert series and series[-1]["value"] == 14.0
+
+
+def test_duration_and_distance_exercises(client):
+    plank = client.post("/api/exercises", json={
+        "name": "Plank", "primary": "core", "metric": "duration"}).json()
+    carry = client.post("/api/exercises", json={
+        "name": "Farmer Carry", "primary": "back", "metric": "distance"}).json()
+
+    sid = client.post("/api/sessions/start", json={}).json()["session_id"]
+    r = client.post("/api/sets", json={
+        "session_id": sid, "exercise_id": plank["id"], "duration_s": 45})
+    assert r.status_code == 200
+    r = client.post("/api/sets", json={
+        "session_id": sid, "exercise_id": carry["id"], "weight_lb": 100, "distance_mi": 0.1})
+    assert r.status_code == 200
+
+    # A set must carry exactly one of reps/duration_s/distance_mi.
+    bad = client.post("/api/sets", json={
+        "session_id": sid, "exercise_id": plank["id"], "duration_s": 30, "reps": 10})
+    assert bad.status_code == 422
+
+    # Analytics (tonnage/volume) must not crash on non-reps sets.
+    assert client.get("/api/analytics/volume").status_code == 200
+    prog = client.get(f"/api/analytics/exercises/{plank['id']}/progression").json()
+    assert prog["sessions"][0]["sets"][0]["duration_s"] == 45
+    prs = {p["exercise_id"]: p for p in client.get("/api/analytics/prs").json()}
+    assert prs[plank["id"]]["e1rm_lb"] == 45
+    assert prs[carry["id"]]["distance_mi"] == 0.1

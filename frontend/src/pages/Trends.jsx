@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, Legend,
 } from 'recharts'
-import { get, WEIGHT_UNIT, MUSCLE_COLORS, exColor } from '../api'
+import { get, WEIGHT_UNIT, MUSCLE_COLORS, exColor, fmtSet, scoreLabel, scoreFmt } from '../api'
 
 const axis = { stroke: '#8a94a2', fontSize: 12 }
 const tip = { contentStyle: { background: '#262c36', border: '1px solid #3d4653', borderRadius: 8, color: '#edeff2' } }
@@ -17,6 +17,7 @@ export default function Trends({ menuBtn }) {
   const [exId, setExId] = useState('')
   const [prog, setProg] = useState([])
   const [progSessions, setProgSessions] = useState([])
+  const selEx = exercises.find((e) => e.id === exId)
 
   useEffect(() => {
     get('/analytics/volume').then((v) =>
@@ -80,7 +81,7 @@ export default function Trends({ menuBtn }) {
         </ResponsiveContainer>
       </div>
 
-      <h2>Exercise progression (e1RM, {WEIGHT_UNIT})</h2>
+      <h2>Exercise progression</h2>
       <div className="card">
         <select value={exId} onChange={(e) => setExId(e.target.value)}>
           <option value="">choose exercise…</option>
@@ -101,9 +102,9 @@ export default function Trends({ menuBtn }) {
           <div className="entry" key={s.session_id}>
             <div>
               <div className="main">{s.date}</div>
-              <div className="meta">{s.sets.map((x) => `${x.load_lb}×${x.reps}`).join('  ')}</div>
+              <div className="meta">{s.sets.map((x) => fmtSet(x)).join('  ')}</div>
             </div>
-            <div className="load">{s.e1rm_lb} <span className="pill">e1RM</span></div>
+            <div className="load">{scoreFmt(s.e1rm_lb, selEx?.metric)} <span className="pill">{scoreLabel(selEx?.metric)}</span></div>
           </div>
         ))}
         {exId && !progSessions.length && <p className="muted">No history yet.</p>}
@@ -112,15 +113,15 @@ export default function Trends({ menuBtn }) {
       <h2>PRs</h2>
       <div className="card">
         <table>
-          <thead><tr><th>Exercise</th><th>Best set</th><th>e1RM</th><th>Date</th></tr></thead>
+          <thead><tr><th>Exercise</th><th>Best set</th><th>Best</th><th>Date</th></tr></thead>
           <tbody>
             {prs.map((p) => {
               const ex = exercises.find((e) => e.id === p.exercise_id)
               return (
               <tr key={p.exercise_id}>
                 <td><span className="exdot" style={{ background: exColor(ex?.primary) }} />{ex?.name || p.exercise_id}</td>
-                <td>{p.load_lb}×{p.reps}</td>
-                <td>{p.e1rm_lb}</td>
+                <td>{fmtSet(p)}</td>
+                <td>{scoreFmt(p.e1rm_lb, ex?.metric)}</td>
                 <td className="muted">{p.date}</td>
               </tr>
               )

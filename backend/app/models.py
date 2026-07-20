@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .config import MUSCLE_GROUPS
 
@@ -30,13 +30,17 @@ class BaseEntry(BaseModel):
 
 
 class SetEntry(BaseEntry):
-    """One resistance set. Supersets/circuits = consecutive SetEntries."""
+    """One resistance set. Supersets/circuits = consecutive SetEntries.
+    Exactly one of reps/duration_s/distance_mi is set, per the exercise's
+    `metric` (reps for lifts, duration for holds, distance for carries/runs)."""
     type: Literal["set"] = "set"
     session_id: str
     exercise_id: str
     weight_lb: Optional[float] = None      # None for pure bodyweight
     added_weight_lb: Optional[float] = None  # bodyweight movements: +weight (belt) or -weight (assist)
-    reps: int
+    reps: Optional[int] = None
+    duration_s: Optional[int] = None
+    distance_mi: Optional[float] = None
     rpe: Optional[float] = None            # 1-10, optional single-tap field
     warmup: bool = False
 
@@ -46,6 +50,12 @@ class SetEntry(BaseEntry):
         if v is not None and not (1 <= v <= 10):
             raise ValueError("rpe must be 1-10")
         return v
+
+    @model_validator(mode="after")
+    def _one_metric(self):
+        if sum(x is not None for x in (self.reps, self.duration_s, self.distance_mi)) != 1:
+            raise ValueError("set needs exactly one of reps, duration_s, distance_mi")
+        return self
 
 
 class CardioEntry(BaseEntry):
@@ -102,6 +112,7 @@ class Exercise(BaseModel):
     equipment: Optional[str] = None        # barbell | dumbbell | cable | machine | bodyweight
     primary: str
     secondary: list[str] = []
+    metric: Literal["reps", "duration", "distance"] = "reps"  # how sets are counted
     bodyweight: bool = False
     default_rest_s: int = 120
     notes: Optional[str] = None            # form cues / setup reminders, shown on the Info tab

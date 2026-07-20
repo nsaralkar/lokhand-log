@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts'
-import { get, post, patch, del, WEIGHT_UNIT, exColor } from '../api'
+import { get, post, patch, del, WEIGHT_UNIT, exColor, fmtSet, scoreLabel, scoreFmt } from '../api'
 import { unlockAudio, beep } from '../audio'
 import Confirm from '../components/Confirm'
 
@@ -20,7 +20,7 @@ export default function Session({ user, navigate, menuBtn }) {
   const [session, setSession] = useState(null) // {session_id, plan, planIdx}
   const [exText, setExText] = useState('')     // exercise picker text (name)
   const [weight, setWeight] = useState(null)   // pounds
-  const [reps, setReps] = useState(10)
+  const [qty, setQty] = useState(10)           // reps, seconds, or miles — per exercise.metric
   const [rpe, setRpe] = useState(null)
   const [timer, setTimer] = useState(null)     // {target, startedAt}: rest countdown
   const [now, setNow] = useState(0)            // ticks every 500ms while a session is live
@@ -29,17 +29,20 @@ export default function Session({ user, navigate, menuBtn }) {
   const [exTab, setExTab] = useState('exercise') // 'exercise' | 'history' | 'info'
   const [logged, setLogged] = useState([])
   const [editId, setEditId] = useState(null)   // logged set being edited
-  const [editVal, setEditVal] = useState({ weight: '', reps: '' })
+  const [editVal, setEditVal] = useState({ weight: '', kind: 'reps', qty: '' })
   const [adding, setAdding] = useState(false)  // add-exercise form open
   const [confirmId, setConfirmId] = useState(null) // set pending delete
   const [planCollapsed, setPlanCollapsed] = useState(true) // hide the rows below the current one
   const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned
+  const [planEditing, setPlanEditing] = useState(false) // Plan header pencil: reveals row edit/drag affordances
+  const [dragIdx, setDragIdx] = useState(null)     // plan row index currently being dragged
   const [sessionNotes, setSessionNotes] = useState('') // freeform notes for the session
   const [notesOpen, setNotesOpen] = useState(false)    // session-notes box expanded
   const [err, setErr] = useState('')
   const wakeLock = useRef(null)
   const hydrated = useRef(false)
   const beeped = useRef(false)
+  const rowRefs = useRef({})   // plan index -> row DOM node, for drag-drop hit testing
   const autoPop = useRef(true)   // gate last-set autofill to genuine exercise switches (off on resume)
 
   const loadExercises = () =>
@@ -71,7 +74,7 @@ export default function Session({ user, navigate, menuBtn }) {
         refreshLogged(saved.session.session_id)
         setExText(saved.exText || '')
         setWeight(saved.weight ?? null)
-        setReps(saved.reps ?? 10)
+        setQty(saved.qty ?? 10)
         setSetStartAt(saved.setStartAt ?? Date.now())
         setSessionNotes(saved.sessionNotes || '')
         setNotesOpen(!!saved.notesOpen)
@@ -81,18 +84,18 @@ export default function Session({ user, navigate, menuBtn }) {
     hydrated.current = true
   }, [])
 
-  // Persist active-workout state so it survives an unmount. `weight`/`reps` are
+  // Persist active-workout state so it survives an unmount. `weight`/`qty` are
   // kept too — the previous set stays in the entry area, so a repeat is one tap.
   // `session` carries the plan, so on-the-fly Up-next swaps survive too.
   useEffect(() => {
     if (!hydrated.current) return
     if (session) {
       localStorage.setItem(RESUME_KEY, JSON.stringify({
-        session, exText, weight, reps, setStartAt, sessionNotes, notesOpen }))
+        session, exText, weight, qty, setStartAt, sessionNotes, notesOpen }))
     } else {
       localStorage.removeItem(RESUME_KEY)
     }
-  }, [session, exText, weight, reps, setStartAt, sessionNotes, notesOpen])
+  }, [session, exText, weight, qty, setStartAt, sessionNotes, notesOpen])
 
   // The picker stores/searches by name; the canonical id is derived from it.
   const exercise = useMemo(
@@ -100,6 +103,8 @@ export default function Session({ user, navigate, menuBtn }) {
     [exercises, exText])
   const exerciseId = exercise?.id || ''
   const isBw = exercise?.bodyweight
+  const metric = exercise?.metric || 'reps'
+  const qtyUnit = metric === 'duration' ? 'sec' : metric === 'distance' ? 'mi' : 'reps'
 
   // Progression for the selected exercise — feeds the History/Trend subtabs and
   // prefills the entry with the last set's values when you switch exercises.
@@ -113,7 +118,7 @@ export default function Session({ user, navigate, menuBtn }) {
         const last = p.sessions.at(-1)?.sets.at(-1)
         if (autoPop.current && last) {
           if (!isBw) setWeight(last.load_lb)  // load_lb == weight for non-bw
-          setReps(last.reps)
+          setQty(last.duration_s ?? last.distance_mi ?? last.reps)
           setRpe(last.rpe ?? null)            // RPE recalls the last set too
         }
         autoPop.current = true
@@ -172,6 +177,7 @@ export default function Session({ user, navigate, menuBtn }) {
       const created = await post('/exercises', {
         name: form.name.trim(),
         primary: form.primary,
+        metric: form.metric,
         equipment: form.equipment || undefined,
         bodyweight: form.bodyweight,
         default_rest_s: Number(form.default_rest_s) || 120,
@@ -187,9 +193,12 @@ export default function Session({ user, navigate, menuBtn }) {
     unlockAudio()  // user gesture — lets the rest timer beep at zero
     try {
       const body = {
-        session_id: session.session_id, exercise_id: exerciseId, reps,
+        session_id: session.session_id, exercise_id: exerciseId,
         rpe: rpe || undefined,
       }
+      if (metric === 'duration') body.duration_s = qty
+      else if (metric === 'distance') body.distance_mi = qty
+      else body.reps = qty
       if (isBw) body.added_weight_lb = weight ?? 0
       else body.weight_lb = weight
       const r = await post('/sets', body)
@@ -241,13 +250,54 @@ export default function Session({ user, navigate, menuBtn }) {
     setSwapIdx(newIdx)
   }
 
+  // Move a planned set from one absolute plan index to another (drag reorder).
+  function reorderPlan(from, to) {
+    setSession((s) => {
+      const plan = s.plan.slice()
+      const [row] = plan.splice(from, 1)
+      plan.splice(to, 0, row)
+      return { ...s, plan }
+    })
+  }
+
+  // Drag-to-reorder via Pointer Events (works for touch and mouse alike, unlike
+  // HTML5 drag-and-drop). Live-swaps the plan row whenever the pointer crosses
+  // into a neighboring row's bounds; row DOM nodes are tracked in rowRefs.
+  function startRowDrag(e, idx) {
+    e.preventDefault()
+    setDragIdx(idx)
+    let current = idx
+    const onMove = (ev) => {
+      const y = ev.clientY
+      for (const [key, el] of Object.entries(rowRefs.current)) {
+        if (!el) continue
+        const target = Number(key)
+        const r = el.getBoundingClientRect()
+        if (y >= r.top && y <= r.bottom && target !== current) {
+          reorderPlan(current, target)
+          current = target
+          setDragIdx(target)
+          break
+        }
+      }
+    }
+    const onUp = () => {
+      setDragIdx(null)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
   function startEdit(l) {
+    const kind = l.duration_s != null ? 'duration_s' : l.distance_mi != null ? 'distance_mi' : 'reps'
     setEditId(l.id)
-    setEditVal({ weight: l.weight_lb ?? l.added_weight_lb ?? '', reps: l.reps })
+    setEditVal({ weight: l.weight_lb ?? l.added_weight_lb ?? '', kind, qty: l[kind] })
   }
 
   async function saveEdit(l) {
-    const p = { reps: Number(editVal.reps) }
+    const p = { [editVal.kind]: Number(editVal.qty) }
     const w = editVal.weight === '' ? null : Number(editVal.weight)
     if (isBwOf(l.exercise_id)) p.added_weight_lb = w ?? 0
     else p.weight_lb = w
@@ -343,9 +393,9 @@ export default function Session({ user, navigate, menuBtn }) {
                 <span className="unit">{WEIGHT_UNIT}</span>
               </div>
               <div className="field">
-                <input className="numval" inputMode="numeric" value={reps ?? ''}
-                  onChange={(e) => setReps(e.target.value === '' ? null : Number(e.target.value))} />
-                <span className="unit">reps</span>
+                <input className="numval" inputMode={metric === 'distance' ? 'decimal' : 'numeric'} value={qty ?? ''}
+                  onChange={(e) => setQty(e.target.value === '' ? null : Number(e.target.value))} />
+                <span className="unit">{qtyUnit}</span>
               </div>
               <div className="field">
                 <input className="numval" inputMode="decimal" value={rpe ?? ''}
@@ -402,10 +452,10 @@ export default function Session({ user, navigate, menuBtn }) {
                               {s.date}
                             </button>
                             <div className="meta">
-                              {s.sets.map((x) => `${x.load_lb}×${x.reps}`).join('  ')}
+                              {s.sets.map((x) => fmtSet(x)).join('  ')}
                             </div>
                           </div>
-                          <div className="load">{s.e1rm_lb} <span className="pill">e1RM</span></div>
+                          <div className="load">{scoreFmt(s.e1rm_lb, metric)} <span className="pill">{scoreLabel(metric)}</span></div>
                         </div>
                       ))}
                     </>
@@ -431,21 +481,34 @@ export default function Session({ user, navigate, menuBtn }) {
       {upcoming.length > 0 && (
         <div className="card">
           <div className="upnext-head">
-            <button className="section-toggle" aria-expanded={!planCollapsed}
-              disabled={upcoming.length < 2}
-              onClick={() => { setPlanCollapsed((c) => !c); setSwapIdx(null) }}>
-              <span className={`chev ${planCollapsed ? '' : 'open'}`}
-                style={{ visibility: upcoming.length > 1 ? 'visible' : 'hidden' }}>▸</span> Plan
-            </button>
-            {upcoming.length > 1 && planCollapsed && (
-              <span className="muted plan-more">+{upcoming.length - 1} more</span>
-            )}
+            <div className="upnext-head-left">
+              <button className="section-toggle" aria-expanded={!planCollapsed}
+                disabled={upcoming.length < 2}
+                onClick={() => { setPlanCollapsed((c) => !c); setSwapIdx(null) }}>
+                <span className={`chev ${planCollapsed ? '' : 'open'}`}
+                  style={{ visibility: upcoming.length > 1 ? 'visible' : 'hidden' }}>▸</span> Plan
+              </button>
+              {upcoming.length > 1 && planCollapsed && (
+                <span className="muted plan-more">+{upcoming.length - 1} more</span>
+              )}
+            </div>
+            <button className="plan-x" aria-label={planEditing ? 'Done editing plan' : 'Edit plan'}
+              onClick={() => {
+                setSwapIdx(null)
+                if (!planEditing) setPlanCollapsed(false)
+                setPlanEditing((v) => !v)
+              }}>{planEditing ? '✓' : '✎'}</button>
           </div>
           {shownUpcoming.map((p, i) => {
             const idx = session.planIdx + i
             return (
-              <div className={`plan-row ${i === 0 ? 'current' : ''}`} key={`up-${idx}`}>
+              <div className={`plan-row ${i === 0 ? 'current' : ''} ${dragIdx === idx ? 'dragging' : ''}`}
+                key={`up-${idx}`} ref={(el) => (rowRefs.current[idx] = el)}>
                 <div className="plan-main">
+                  {planEditing && (
+                    <span className="plan-handle" aria-label="Drag to reorder"
+                      onPointerDown={(e) => startRowDrag(e, idx)}>⠿</span>
+                  )}
                   <span className="exdot" style={{ background: colorOf(p.exercise_id) }} />
                   {swapIdx === idx ? (
                     <input list="exlist" autoFocus defaultValue={nameOf(p.exercise_id)}
@@ -460,23 +523,25 @@ export default function Session({ user, navigate, menuBtn }) {
                   <span className="muted">
                     {p.block ? `${p.block} · ` : ''}round {p.round}
                   </span>
-                  {swapIdx === idx ? (
-                    <button className="plan-x danger" aria-label="Remove from plan"
-                      onClick={() => removePlanRow(idx)}>×</button>
-                  ) : (
-                    <button className="plan-x" aria-label="Edit set"
-                      onClick={() => setSwapIdx(idx)}>✎</button>
+                  {planEditing && (
+                    swapIdx === idx ? (
+                      <button className="plan-x danger" aria-label="Remove from plan"
+                        onClick={() => removePlanRow(idx)}>×</button>
+                    ) : (
+                      <button className="plan-x" aria-label="Edit set"
+                        onClick={() => setSwapIdx(idx)}>✎</button>
+                    )
                   )}
                 </div>
               </div>
             )
           })}
-          <button className="plan-add" onClick={addPlanRow}>＋ add exercise</button>
+          {planEditing && <button className="plan-add" onClick={addPlanRow}>＋ add exercise</button>}
         </div>
       )}
 
       {logged.length > 0 && (
-        <div className="card">
+        <div className="card completed">
           <div className="section-head" style={{ marginBottom: 10 }}>Completed</div>
           {logged.map((l) => (
             <div className="entry" key={l.id}>
@@ -488,8 +553,8 @@ export default function Session({ user, navigate, menuBtn }) {
                 <div className="row" style={{ maxWidth: 280 }}>
                   <input inputMode="decimal" value={editVal.weight} placeholder={WEIGHT_UNIT}
                     onChange={(e) => setEditVal({ ...editVal, weight: e.target.value })} />
-                  <input inputMode="numeric" value={editVal.reps}
-                    onChange={(e) => setEditVal({ ...editVal, reps: e.target.value })} />
+                  <input inputMode={editVal.kind === 'distance_mi' ? 'decimal' : 'numeric'} value={editVal.qty}
+                    onChange={(e) => setEditVal({ ...editVal, qty: e.target.value })} />
                   <button className="primary" onClick={() => saveEdit(l)}>✓</button>
                   <button className="ghost danger" style={{ minHeight: 40, padding: '0 10px' }}
                     onClick={() => setConfirmId(l.id)}>✕</button>
@@ -497,7 +562,7 @@ export default function Session({ user, navigate, menuBtn }) {
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div className="load">
-                    {(l.weight_lb ?? l.added_weight_lb) ?? 'bw'}×{l.reps}
+                    {fmtSet(l)}
                   </div>
                   <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
                     onClick={() => startEdit(l)}>✎</button>
@@ -532,7 +597,7 @@ export default function Session({ user, navigate, menuBtn }) {
 
 function AddExerciseForm({ onSubmit }) {
   const [f, setF] = useState({
-    name: '', primary: 'chest', equipment: '', bodyweight: false, default_rest_s: 120 })
+    name: '', primary: 'chest', metric: 'reps', equipment: '', bodyweight: false, default_rest_s: 120 })
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }))
   return (
     <div className="card" style={{ background: 'var(--surface-2)', marginTop: 8 }}>
@@ -552,6 +617,12 @@ function AddExerciseForm({ onSubmit }) {
             onChange={(e) => set('default_rest_s', e.target.value)} />
         </div>
       </div>
+      <label>Tracked by</label>
+      <select value={f.metric} onChange={(e) => set('metric', e.target.value)}>
+        <option value="reps">Reps</option>
+        <option value="duration">Duration (e.g. planks, holds)</option>
+        <option value="distance">Distance (e.g. carries, runs)</option>
+      </select>
       <label>Equipment (optional)</label>
       <input value={f.equipment} onChange={(e) => set('equipment', e.target.value)}
         placeholder="dumbbell / barbell / cable / machine" />

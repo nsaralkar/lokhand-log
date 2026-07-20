@@ -58,7 +58,7 @@ def volume_over_time(username: str, bucket: str = "week",
         if muscle and (ex is None or ex.primary != muscle):
             continue
         key = _week_key(row["ts"]) if bucket == "week" else row["ts"][:10]
-        buckets[key] += _set_load_lb(row, bw) * row["reps"]
+        buckets[key] += _set_load_lb(row, bw) * (row.get("reps") or 0)
     return [{"bucket": k, "volume_lb": round(v, 1)} for k, v in sorted(buckets.items())]
 
 
@@ -72,7 +72,7 @@ def session_volumes(username: str, limit: int = 60) -> list[dict]:
         if r["type"] == "session_start":
             starts[r["session_id"]] = r["ts"]
         elif r.get("type") == "set" and not r.get("warmup"):
-            vol[r.get("session_id", "")] += _set_load_lb(r, bw) * r["reps"]
+            vol[r.get("session_id", "")] += _set_load_lb(r, bw) * (r.get("reps") or 0)
     out = [{"session_id": sid, "date": starts[sid][:10], "volume_lb": round(v, 1)}
            for sid, v in vol.items() if sid in starts]
     out.sort(key=lambda x: starts[x["session_id"]])
@@ -88,7 +88,7 @@ def muscle_group_volume(username: str, weeks: int = 8) -> list[dict]:
         ex = exercises.get(row["exercise_id"])
         if ex is None:
             continue
-        table[_week_key(row["ts"])][ex.primary] += _set_load_lb(row, bw) * row["reps"]
+        table[_week_key(row["ts"])][ex.primary] += _set_load_lb(row, bw) * (row.get("reps") or 0)
     out = [{"bucket": wk, **{m: round(v, 1) for m, v in groups.items()}}
            for wk, groups in sorted(table.items())]
     return out[-weeks:]
@@ -96,6 +96,16 @@ def muscle_group_volume(username: str, weeks: int = 8) -> list[dict]:
 
 def epley_1rm(load_lb: float, reps: int) -> float:
     return load_lb * (1 + reps / 30) if reps > 1 else load_lb
+
+
+def _set_score(row: dict, bw: Optional[float]) -> float:
+    """Progression/PR score for one set, generalized across metrics: est. 1RM
+    for reps-based lifts, else the raw duration/distance (bigger is better)."""
+    if row.get("reps") is not None:
+        return epley_1rm(_set_load_lb(row, bw), row["reps"])
+    if row.get("duration_s") is not None:
+        return row["duration_s"]
+    return row.get("distance_mi") or 0.0
 
 
 def exercise_progression(username: str, exercise_id: str, limit_sessions: int = 50) -> dict:
@@ -109,14 +119,15 @@ def exercise_progression(username: str, exercise_id: str, limit_sessions: int = 
     out = []
     for sid, sets in sessions.items():
         sets.sort(key=lambda r: r["ts"])
-        top = max(sets, key=lambda r: epley_1rm(_set_load_lb(r, bw), r["reps"]))
+        top = max(sets, key=lambda r: _set_score(r, bw))
         out.append({
             "date": sets[0]["ts"][:10],
             "session_id": sid,
             "top_load_lb": round(_set_load_lb(top, bw), 1),
-            "top_reps": top["reps"],
-            "e1rm_lb": round(epley_1rm(_set_load_lb(top, bw), top["reps"]), 1),
-            "sets": [{"load_lb": round(_set_load_lb(s, bw), 1), "reps": s["reps"],
+            "top_reps": top.get("reps"),
+            "e1rm_lb": round(_set_score(top, bw), 1),
+            "sets": [{"load_lb": round(_set_load_lb(s, bw), 1), "reps": s.get("reps"),
+                      "duration_s": s.get("duration_s"), "distance_mi": s.get("distance_mi"),
                       "rpe": s.get("rpe"), "notes": s.get("notes")} for s in sets],
         })
     out.sort(key=lambda s: s["date"])
@@ -124,17 +135,19 @@ def exercise_progression(username: str, exercise_id: str, limit_sessions: int = 
 
 
 def prs(username: str) -> list[dict]:
-    """Best e1RM per exercise, plus best load and best reps-at-best-load."""
+    """Best score per exercise (est. 1RM for lifts, best duration/distance for
+    holds and carries), plus the load/reps or duration/distance that earned it."""
     bw = latest_bodyweight_lb(username)
     best: dict[str, dict] = {}
     for row in _work_sets(username):
-        load = _set_load_lb(row, bw)
-        e1 = epley_1rm(load, row["reps"])
+        score = _set_score(row, bw)
         cur = best.get(row["exercise_id"])
-        if cur is None or e1 > cur["e1rm_lb"]:
+        if cur is None or score > cur["e1rm_lb"]:
             best[row["exercise_id"]] = {
                 "exercise_id": row["exercise_id"], "date": row["ts"][:10],
-                "load_lb": round(load, 1), "reps": row["reps"], "e1rm_lb": round(e1, 1)}
+                "load_lb": round(_set_load_lb(row, bw), 1), "reps": row.get("reps"),
+                "duration_s": row.get("duration_s"), "distance_mi": row.get("distance_mi"),
+                "e1rm_lb": round(score, 1)}
     return sorted(best.values(), key=lambda r: r["exercise_id"])
 
 
@@ -152,7 +165,7 @@ def session_summary(username: str, session_id: str) -> dict:
         prev_ts = ts
         e = {**r, "since_prev_s": delta}
         if r["type"] == "set" and not r.get("warmup"):
-            tonnage += _set_load_lb(r, bw) * r["reps"]
+            tonnage += _set_load_lb(r, bw) * (r.get("reps") or 0)
         entries.append(e)
     dur = None
     if len(rows) >= 2:

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { get, patch, del, WEIGHT_UNIT, fmtDuration, exColor } from '../api'
+import { get, patch, del, WEIGHT_UNIT, fmtDuration, fmtSet, exColor } from '../api'
 import Confirm from '../components/Confirm'
 
 export default function History({ openSession: deepLink, onOpened, menuBtn }) {
@@ -27,7 +27,7 @@ export default function History({ openSession: deepLink, onOpened, menuBtn }) {
   }
 
   async function saveEdit() {
-    const p = { reps: Number(editing.reps) }
+    const p = { [editing.kind]: Number(editing.qty) }
     if (editing.weight != null && editing.weight !== '')
       p.weight_lb = Number(editing.weight)
     await patch(`/entries/${editing.id}`, p)
@@ -125,8 +125,8 @@ export default function History({ openSession: deepLink, onOpened, menuBtn }) {
                 <div className="row" style={{ maxWidth: 300 }}>
                   <input inputMode="decimal" value={editing.weight ?? ''} placeholder={WEIGHT_UNIT}
                     onChange={(ev) => setEditing({ ...editing, weight: ev.target.value })} />
-                  <input inputMode="numeric" value={editing.reps}
-                    onChange={(ev) => setEditing({ ...editing, reps: ev.target.value })} />
+                  <input inputMode={editing.kind === 'distance_mi' ? 'decimal' : 'numeric'} value={editing.qty}
+                    onChange={(ev) => setEditing({ ...editing, qty: ev.target.value })} />
                   <button className="primary" onClick={saveEdit}>✓</button>
                   <button className="ghost danger" style={{ minHeight: 40, padding: '0 10px' }}
                     onClick={() => setConfirmId(e.id)}>✕</button>
@@ -134,13 +134,13 @@ export default function History({ openSession: deepLink, onOpened, menuBtn }) {
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div className="load">
-                    {e.type === 'cardio'
-                      ? `${e.distance_mi ?? '—'} mi`
-                      : `${(e.weight_lb ?? e.added_weight_lb) ?? 'bw'}×${e.reps}`}
+                    {e.type === 'cardio' ? `${e.distance_mi ?? '—'} mi` : fmtSet(e)}
                   </div>
                   {e.type === 'set' && (
                     <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
-                      onClick={() => setEditing({ id: e.id, reps: e.reps, weight: e.weight_lb })}>✎</button>
+                      onClick={() => setEditing({ id: e.id,
+                        kind: e.duration_s != null ? 'duration_s' : e.distance_mi != null ? 'distance_mi' : 'reps',
+                        qty: e.duration_s ?? e.distance_mi ?? e.reps, weight: e.weight_lb })}>✎</button>
                   )}
                 </div>
               )}
