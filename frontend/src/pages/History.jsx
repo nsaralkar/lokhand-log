@@ -122,12 +122,14 @@ export default function History({ openSession: deepLink, onOpened, menuBtn }) {
                 </div>
               </div>
               {editing?.id === e.id ? (
-                <div className="row" style={{ maxWidth: 260 }}>
+                <div className="row" style={{ maxWidth: 300 }}>
                   <input inputMode="decimal" value={editing.weight ?? ''} placeholder={WEIGHT_UNIT}
                     onChange={(ev) => setEditing({ ...editing, weight: ev.target.value })} />
                   <input inputMode="numeric" value={editing.reps}
                     onChange={(ev) => setEditing({ ...editing, reps: ev.target.value })} />
                   <button className="primary" onClick={saveEdit}>✓</button>
+                  <button className="ghost danger" style={{ minHeight: 40, padding: '0 10px' }}
+                    onClick={() => setConfirmId(e.id)}>✕</button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -137,12 +139,8 @@ export default function History({ openSession: deepLink, onOpened, menuBtn }) {
                       : `${(e.weight_lb ?? e.added_weight_lb) ?? 'bw'}×${e.reps}`}
                   </div>
                   {e.type === 'set' && (
-                    <>
-                      <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
-                        onClick={() => setEditing({ id: e.id, reps: e.reps, weight: e.weight_lb })}>✎</button>
-                      <button className="ghost danger" style={{ minHeight: 40, padding: '0 10px' }}
-                        onClick={() => setConfirmId(e.id)}>✕</button>
-                    </>
+                    <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
+                      onClick={() => setEditing({ id: e.id, reps: e.reps, weight: e.weight_lb })}>✎</button>
                   )}
                 </div>
               )}

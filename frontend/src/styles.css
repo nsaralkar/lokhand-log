@@ -86,20 +86,10 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 }
 .field .numval {
   flex: 1; min-width: 0; border: none; background: transparent; padding: 0; min-height: 48px;
-  font-family: var(--font-display); font-size: 40px; font-weight: 700; text-align: left;
+  font-family: var(--font-display); font-size: 34px; font-weight: 700; text-align: left;
 }
 .field .numval:focus { outline: none; }
 .field .unit { color: var(--muted); font-size: 14px; flex: 0 0 auto; }
-
-/* RPE: an optional single-tap picker wedged to the right of reps, narrower and a
-   notch smaller than the weight/reps numerals so it reads as secondary. */
-.fields .field.rpe { flex: 0 0 auto; width: 84px; }
-.field .rpeval {
-  flex: 1; min-width: 0; border: none; background: transparent; padding: 0; min-height: 48px;
-  font-family: var(--font-display); font-size: 30px; font-weight: 700; color: var(--ink);
-  -webkit-appearance: none; appearance: none;
-}
-.field .rpeval:focus { outline: none; }
 
 /* Workout plan rows ("Up next" card). Row metrics are kept identical to .entry
    so the Up-next and This-session lists read as one consistent rhythm. */
@@ -113,10 +103,6 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .plan-row.current .plan-ex { color: var(--accent); }
 /* Dot + name grouped on the left so the color tag stays with the exercise */
 .plan-row .plan-main { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-/* Tappable exercise name (swap a set on the fly) + inline picker */
-.plan-row .plan-ex.tap { background: none; border: none; padding: 0; min-height: 0;
-  color: inherit; font: inherit; font-weight: 500; text-align: left;
-  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
 .plan-row .plan-main input { flex: 1; min-height: 38px; padding: 6px 10px; }
 
 /* Subtle per-exercise color tag: a small dot keyed to the primary muscle,
@@ -154,7 +140,8 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 /* Plan-row right side: round meta + remove button */
 .plan-right { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 .plan-x { min-height: 32px; width: 30px; padding: 0; background: none; border: none;
-  color: var(--muted); font-size: 20px; line-height: 1; }
+  color: var(--muted); font-size: 18px; line-height: 1; }
+.plan-x.danger { color: var(--danger); font-size: 20px; }
 /* Append-to-plan footer button */
 .plan-add { margin-top: 8px; width: 100%; min-height: 38px; background: none;
   border: 1px dashed var(--line); color: var(--muted);

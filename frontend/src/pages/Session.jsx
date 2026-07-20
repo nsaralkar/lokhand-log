@@ -4,7 +4,6 @@ import { get, post, patch, del, WEIGHT_UNIT, exColor } from '../api'
 import { unlockAudio, beep } from '../audio'
 import Confirm from '../components/Confirm'
 
-const RPE = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]
 // Fixed taxonomy — mirrors backend config.MUSCLE_GROUPS (used by the add form).
 const MUSCLE_GROUPS = ['chest', 'back', 'shoulders', 'biceps', 'triceps',
   'quads', 'hamstrings', 'glutes', 'calves', 'core']
@@ -115,6 +114,7 @@ export default function Session({ user, navigate, menuBtn }) {
         if (autoPop.current && last) {
           if (!isBw) setWeight(last.load_lb)  // load_lb == weight for non-bw
           setReps(last.reps)
+          setRpe(last.rpe ?? null)            // RPE recalls the last set too
         }
         autoPop.current = true
       })
@@ -199,7 +199,6 @@ export default function Session({ user, navigate, menuBtn }) {
       // off-plan sets fall back to the backend's end-of-block default.
       const restS = session.plan?.[session.planIdx]?.rest_s ?? r.rest_s
       setTimer({ target: restS, startedAt: Date.now() })
-      setRpe(null)
       if (session.plan) {
         const next = session.planIdx + 1
         setSession({ ...session, planIdx: next })
@@ -348,12 +347,9 @@ export default function Session({ user, navigate, menuBtn }) {
                   onChange={(e) => setReps(e.target.value === '' ? null : Number(e.target.value))} />
                 <span className="unit">reps</span>
               </div>
-              <div className="field rpe">
-                <select className="rpeval" value={rpe ?? ''}
-                  onChange={(e) => setRpe(e.target.value ? Number(e.target.value) : null)}>
-                  <option value="">–</option>
-                  {RPE.map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
+              <div className="field">
+                <input className="numval" inputMode="decimal" value={rpe ?? ''}
+                  onChange={(e) => setRpe(e.target.value === '' ? null : Number(e.target.value))} />
                 <span className="unit">rpe</span>
               </div>
             </div>
@@ -457,15 +453,20 @@ export default function Session({ user, navigate, menuBtn }) {
                       onBlur={(e) => applySwap(idx, e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') applySwap(idx, e.target.value) }} />
                   ) : (
-                    <button className="plan-ex tap" onClick={() => setSwapIdx(idx)}>{nameOf(p.exercise_id)}</button>
+                    <span className="plan-ex">{nameOf(p.exercise_id)}</span>
                   )}
                 </div>
                 <div className="plan-right">
                   <span className="muted">
                     {p.block ? `${p.block} · ` : ''}round {p.round}
                   </span>
-                  <button className="plan-x" aria-label="Remove from plan"
-                    onClick={() => removePlanRow(idx)}>×</button>
+                  {swapIdx === idx ? (
+                    <button className="plan-x danger" aria-label="Remove from plan"
+                      onClick={() => removePlanRow(idx)}>×</button>
+                  ) : (
+                    <button className="plan-x" aria-label="Edit set"
+                      onClick={() => setSwapIdx(idx)}>✎</button>
+                  )}
                 </div>
               </div>
             )
@@ -484,12 +485,14 @@ export default function Session({ user, navigate, menuBtn }) {
                 {nameOf(l.exercise_id)}
               </div>
               {editId === l.id ? (
-                <div className="row" style={{ maxWidth: 240 }}>
+                <div className="row" style={{ maxWidth: 280 }}>
                   <input inputMode="decimal" value={editVal.weight} placeholder={WEIGHT_UNIT}
                     onChange={(e) => setEditVal({ ...editVal, weight: e.target.value })} />
                   <input inputMode="numeric" value={editVal.reps}
                     onChange={(e) => setEditVal({ ...editVal, reps: e.target.value })} />
                   <button className="primary" onClick={() => saveEdit(l)}>✓</button>
+                  <button className="ghost danger" style={{ minHeight: 40, padding: '0 10px' }}
+                    onClick={() => setConfirmId(l.id)}>✕</button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -498,8 +501,6 @@ export default function Session({ user, navigate, menuBtn }) {
                   </div>
                   <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
                     onClick={() => startEdit(l)}>✎</button>
-                  <button className="ghost danger" style={{ minHeight: 40, padding: '0 10px' }}
-                    onClick={() => setConfirmId(l.id)}>✕</button>
                 </div>
               )}
             </div>
