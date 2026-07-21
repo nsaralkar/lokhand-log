@@ -116,8 +116,13 @@ export default function Session({ user, navigate, menuBtn }) {
       .then((p) => {
         setProg(p.sessions)
         const last = p.sessions.at(-1)?.sets.at(-1)
+        if (autoPop.current) {
+          // bw movements have their own added-weight history (often 0) —
+          // recall it instead of leaving the previous exercise's weight in the field.
+          if (isBw) setWeight(last?.added_weight_lb ?? 0)
+          else if (last) setWeight(last.load_lb)  // load_lb == weight for non-bw
+        }
         if (autoPop.current && last) {
-          if (!isBw) setWeight(last.load_lb)  // load_lb == weight for non-bw
           setQty(last.duration_s ?? last.distance_mi ?? last.reps)
           setRpe(last.rpe ?? null)            // RPE recalls the last set too
         }
@@ -526,6 +531,7 @@ export default function Session({ user, navigate, menuBtn }) {
                   {planEditing && (
                     swapIdx === idx ? (
                       <button className="plan-x danger" aria-label="Remove from plan"
+                        onPointerDown={(e) => e.preventDefault()}
                         onClick={() => removePlanRow(idx)}>×</button>
                     ) : (
                       <button className="plan-x" aria-label="Edit set"

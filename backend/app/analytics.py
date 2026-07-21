@@ -128,7 +128,8 @@ def exercise_progression(username: str, exercise_id: str, limit_sessions: int = 
             "e1rm_lb": round(_set_score(top, bw), 1),
             "sets": [{"load_lb": round(_set_load_lb(s, bw), 1), "reps": s.get("reps"),
                       "duration_s": s.get("duration_s"), "distance_mi": s.get("distance_mi"),
-                      "rpe": s.get("rpe"), "notes": s.get("notes")} for s in sets],
+                      "rpe": s.get("rpe"), "notes": s.get("notes"),
+                      "added_weight_lb": s.get("added_weight_lb")} for s in sets],
         })
     out.sort(key=lambda s: s["date"])
     return {"exercise_id": exercise_id, "sessions": out[-limit_sessions:]}
