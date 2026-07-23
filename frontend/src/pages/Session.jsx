@@ -33,6 +33,7 @@ export default function Session({ user, navigate, menuBtn }) {
   const [adding, setAdding] = useState(false)  // add-exercise form open
   const [confirmId, setConfirmId] = useState(null) // set pending delete
   const [planCollapsed, setPlanCollapsed] = useState(true) // hide the rows below the current one
+  const [completedCollapsed, setCompletedCollapsed] = useState(true) // hide the logged-set rows
   const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned
   const [planEditing, setPlanEditing] = useState(false) // Plan header pencil: reveals row edit/drag affordances
   const [dragIdx, setDragIdx] = useState(null)     // plan row index currently being dragged
@@ -131,6 +132,16 @@ export default function Session({ user, navigate, menuBtn }) {
       .catch(() => {})
   }, [exerciseId])
 
+  // Keep the exercise picker in sync with the plan's current row — covers the
+  // normal advance after logging a set as well as edits (swap/reorder) that
+  // change what's current. Only overrides once the plan actually has a current
+  // row; once it's exhausted, whatever's in the picker is the lifter's own pick.
+  useEffect(() => {
+    if (!hydrated.current) return
+    const cur = session?.plan?.[session.planIdx]
+    if (cur) setExText(nameOf(cur.exercise_id))
+  }, [session?.plan, session?.planIdx])
+
   const history = useMemo(() => prog.slice(-3).reverse(), [prog])
   const trend = useMemo(
     () => prog.map((s) => ({ date: s.date, e1rm: s.e1rm_lb })),
@@ -171,9 +182,9 @@ export default function Session({ user, navigate, menuBtn }) {
   async function start(routine, day) {
     const r = await post('/sessions/start', { routine, day })
     setSession({ session_id: r.session_id, plan: r.plan, planIdx: 0 })
-    setLogged([]); setExTab('exercise'); setPlanCollapsed(true); setSwapIdx(null)
+    setLogged([]); setExTab('exercise'); setPlanCollapsed(true); setCompletedCollapsed(true); setSwapIdx(null)
     setTimer(null); setSetStartAt(Date.now())
-    if (r.plan?.length) setExText(nameOf(r.plan[0].exercise_id))
+    if (!r.plan?.length) setExText('')
   }
 
   async function addExercise(form) {
@@ -213,12 +224,7 @@ export default function Session({ user, navigate, menuBtn }) {
       // off-plan sets fall back to the backend's end-of-block default.
       const restS = session.plan?.[session.planIdx]?.rest_s ?? r.rest_s
       setTimer({ target: restS, startedAt: Date.now() })
-      if (session.plan) {
-        const next = session.planIdx + 1
-        setSession({ ...session, planIdx: next })
-        const nx = session.plan[next]
-        if (nx && nx.exercise_id !== exerciseId) setExText(nameOf(nx.exercise_id))
-      }
+      if (session.plan) setSession({ ...session, planIdx: session.planIdx + 1 })
     } catch (e) { setErr(e.message) }
   }
 
@@ -234,10 +240,9 @@ export default function Session({ user, navigate, menuBtn }) {
   // Drop an upcoming set from the in-session plan (routine YAML untouched).
   function removePlanRow(idx) {
     setSwapIdx(null)
-    if (idx === session.planIdx) {  // removing the current set: retarget the picker
-      const nx = session.plan[idx + 1]
-      setExText(nx ? nameOf(nx.exercise_id) : '')
-    }
+    // Removing the last remaining current set: the sync effect only retargets the
+    // picker when the plan still has a current row, so clear it explicitly here.
+    if (idx === session.planIdx && !session.plan[idx + 1]) setExText('')
     setSession((s) => {
       const plan = s.plan.slice()
       plan.splice(idx, 1)
@@ -548,8 +553,13 @@ export default function Session({ user, navigate, menuBtn }) {
 
       {logged.length > 0 && (
         <div className="card completed">
-          <div className="section-head" style={{ marginBottom: 10 }}>Completed</div>
-          {logged.map((l) => (
+          <button className="section-toggle" aria-expanded={!completedCollapsed}
+            style={{ marginBottom: completedCollapsed ? 0 : 6 }}
+            onClick={() => setCompletedCollapsed((c) => !c)}>
+            <span className={`chev ${completedCollapsed ? '' : 'open'}`}>▸</span>
+            Completed <span className="muted">· {logged.length} set{logged.length === 1 ? '' : 's'}</span>
+          </button>
+          {!completedCollapsed && logged.map((l) => (
             <div className="entry" key={l.id}>
               <div className="main exname">
                 <span className="exdot" style={{ background: colorOf(l.exercise_id) }} />
