@@ -26,7 +26,7 @@ h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: 0.02em;
 h1 { font-size: 28px; font-weight: 700; text-transform: uppercase; margin: 8px 0; }
 h2 { font-size: 20px; font-weight: 600; margin: 16px 0 8px; color: var(--muted); text-transform: uppercase; }
 
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; margin-bottom: 8px; }
 
 button {
   font-family: var(--font-body); font-size: 16px; font-weight: 600;
@@ -51,7 +51,7 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 
 /* Rest timer — occupies exactly the Log-set button's footprint while resting:
    −30 / clock / +30 / ✕, all inside one 60px-tall row. */
-.logtimer { display: flex; align-items: stretch; gap: 6px; margin-top: 12px; height: 60px; }
+.logtimer { display: flex; align-items: stretch; gap: 6px; margin-top: 8px; height: 60px; }
 .logtimer .logtimer-clock {
   flex: 1; display: flex; align-items: center; justify-content: center;
   font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1;
@@ -64,7 +64,7 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 
 /* Log-set row: the button plus an always-on count-up stopwatch for the current
    set. Muted so it never competes with the amber rest countdown. */
-.logrow { display: flex; gap: 8px; margin-top: 12px; height: 60px; }
+.logrow { display: flex; gap: 8px; margin-top: 8px; height: 60px; }
 .logrow .big { flex: 1; margin: 0; }
 .logrow .setclock {
   flex: 0 0 auto; min-width: 76px; display: flex; align-items: center; justify-content: center;
@@ -77,12 +77,12 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .row > * { flex: 1; }
 
 /* Weight/reps: plain big-numeral inputs (no steppers) with an inline grey label */
-.fields { display: flex; gap: 10px; margin-top: 16px; }
+.fields { display: flex; gap: 8px; margin-top: 10px; }
 .fields .field { flex: 1; min-width: 0; }
 .field {
   display: flex; align-items: baseline; gap: 6px;
   border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 6px 10px 8px; background: var(--surface-2);
+  padding: 5px 8px 6px; background: var(--surface-2);
 }
 .field .numval {
   flex: 1; min-width: 0; border: none; background: transparent; padding: 0; min-height: 48px;
@@ -158,16 +158,16 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .notes-area { margin-top: 8px; resize: vertical; min-height: 88px; line-height: 1.45; }
 
 /* Exercise picker: text field with a small + button to its right */
-.ex-picker { display: flex; gap: 8px; }
+.ex-picker { display: flex; gap: 6px; }
 .ex-picker input { flex: 1; }
 .addex { flex: 0 0 auto; width: 48px; min-height: 48px; padding: 0; font-size: 26px; line-height: 1;
   background: var(--surface-2); }
 
 /* In-card subtabs (per-exercise Exercise / History / Info) */
 .subtabs { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--line);
-  margin-bottom: 10px; }
-.subtabs button { min-height: 40px; border: none; border-radius: 0; background: none;
-  color: var(--muted); padding: 0 4px 8px; font-family: var(--font-display);
+  margin-bottom: 8px; }
+.subtabs button { min-height: 36px; border: none; border-radius: 0; background: none;
+  color: var(--muted); padding: 0 4px 6px; font-family: var(--font-display);
   text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid transparent; }
 .subtabs button.on { color: var(--ink); border-bottom-color: var(--accent); }
 
