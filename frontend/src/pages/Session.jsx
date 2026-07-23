@@ -3,6 +3,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'rec
 import { get, post, patch, del, WEIGHT_UNIT, exColor, fmtSet, scoreLabel, scoreFmt } from '../api'
 import { unlockAudio, beep } from '../audio'
 import Confirm from '../components/Confirm'
+import ExercisePicker from '../components/ExercisePicker'
 
 // Fixed taxonomy — mirrors backend config.MUSCLE_GROUPS (used by the add form).
 const MUSCLE_GROUPS = ['chest', 'back', 'shoulders', 'biceps', 'triceps',
@@ -34,7 +35,8 @@ export default function Session({ user, navigate, menuBtn }) {
   const [confirmId, setConfirmId] = useState(null) // set pending delete
   const [planCollapsed, setPlanCollapsed] = useState(true) // hide the rows below the current one
   const [completedCollapsed, setCompletedCollapsed] = useState(true) // hide the logged-set rows
-  const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned
+  const [pickerOpen, setPickerOpen] = useState(false) // main exercise-picker modal
+  const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned (opens the picker modal)
   const [planEditing, setPlanEditing] = useState(false) // Plan header pencil: reveals row edit/drag affordances
   const [dragIdx, setDragIdx] = useState(null)     // plan row index currently being dragged
   const [sessionNotes, setSessionNotes] = useState('') // freeform notes for the session
@@ -386,14 +388,12 @@ export default function Session({ user, navigate, menuBtn }) {
           <>
             {exErr && <p className="error">{exErr}</p>}
             <div className="ex-picker">
-              <input list="exlist" value={exText}
-                onChange={(e) => setExText(e.target.value)} placeholder="start typing…" />
+              <button className="expicker-trigger" onClick={() => setPickerOpen(true)}>
+                {exText || <span className="muted">choose exercise…</span>}
+              </button>
               <button className="addex" aria-label={adding ? 'Cancel new exercise' : 'New exercise'}
                 onClick={() => { setErr(''); setAdding((v) => !v) }}>{adding ? '×' : '+'}</button>
             </div>
-            <datalist id="exlist">
-              {exercises.map((e) => <option key={e.id} value={e.name} />)}
-            </datalist>
             {adding && <AddExerciseForm onSubmit={addExercise} />}
 
             <div className="fields">
@@ -520,28 +520,19 @@ export default function Session({ user, navigate, menuBtn }) {
                       onPointerDown={(e) => startRowDrag(e, idx)}>⠿</span>
                   )}
                   <span className="exdot" style={{ background: colorOf(p.exercise_id) }} />
-                  {swapIdx === idx ? (
-                    <input list="exlist" autoFocus defaultValue={nameOf(p.exercise_id)}
-                      placeholder="swap in an exercise…"
-                      onBlur={(e) => applySwap(idx, e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') applySwap(idx, e.target.value) }} />
-                  ) : (
-                    <span className="plan-ex">{nameOf(p.exercise_id)}</span>
-                  )}
+                  <span className="plan-ex">{nameOf(p.exercise_id)}</span>
                 </div>
                 <div className="plan-right">
                   <span className="muted">
                     {p.block ? `${p.block} · ` : ''}round {p.round}
                   </span>
                   {planEditing && (
-                    swapIdx === idx ? (
-                      <button className="plan-x danger" aria-label="Remove from plan"
-                        onPointerDown={(e) => e.preventDefault()}
-                        onClick={() => removePlanRow(idx)}>×</button>
-                    ) : (
-                      <button className="plan-x" aria-label="Edit set"
+                    <>
+                      <button className="plan-x" aria-label="Swap exercise"
                         onClick={() => setSwapIdx(idx)}>✎</button>
-                    )
+                      <button className="plan-x danger" aria-label="Remove from plan"
+                        onClick={() => removePlanRow(idx)}>×</button>
+                    </>
                   )}
                 </div>
               </div>
@@ -603,6 +594,15 @@ export default function Session({ user, navigate, menuBtn }) {
       </div>
 
       <button className="big danger" onClick={endSession}>Finish workout</button>
+
+      <ExercisePicker open={pickerOpen} exercises={exercises} value={exText}
+        onSelect={(name) => { setExText(name); setPickerOpen(false) }}
+        onClose={() => setPickerOpen(false)} />
+
+      <ExercisePicker open={swapIdx != null} exercises={exercises}
+        value={swapIdx != null ? nameOf(plan[swapIdx]?.exercise_id) : ''}
+        onSelect={(name) => applySwap(swapIdx, name)}
+        onClose={() => setSwapIdx(null)} />
 
       <Confirm open={confirmId != null}
         message="Delete this set? git history keeps the audit trail."

@@ -163,6 +163,23 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .addex { flex: 0 0 auto; width: 48px; min-height: 48px; padding: 0; font-size: 26px; line-height: 1;
   background: var(--surface-2); }
 
+/* Exercise-picker trigger: styled like the text input it replaces, but opens
+   the modal list instead of relying on a native <datalist> (broken on Android
+   Chrome — tap only selects text, no dropdown ever appears). */
+.expicker-trigger { flex: 1; min-width: 0; text-align: left; font-weight: 400;
+  background: var(--surface-2); color: var(--ink); border: 1px solid var(--line);
+  border-radius: var(--radius); min-height: 48px; padding: 10px 12px; font-size: 16px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Exercise-picker modal: search box pinned above a scrollable full list. */
+.expicker { max-width: 420px; max-height: 78vh; display: flex; flex-direction: column; gap: 8px; }
+.expicker-list { overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+.expicker-row { display: flex; align-items: center; width: 100%; min-height: 44px;
+  text-align: left; background: none; border: none; border-radius: 0;
+  border-bottom: 1px solid var(--line); padding: 8px 4px; font-weight: 400; }
+.expicker-row:last-child { border-bottom: none; }
+.expicker-row.on { color: var(--accent); }
+
 /* In-card subtabs (per-exercise Exercise / History / Info) */
 .subtabs { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--line);
   margin-bottom: 8px; }

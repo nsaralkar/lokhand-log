@@ -79,7 +79,10 @@ if (await startBtn.count()) {
   await shot('03-logging-empty')
 
   // 4. Pick an exercise with history → weight/reps autofill.
-  await page.getByPlaceholder('start typing…').fill('Chest Press, Incline, DB')
+  await page.locator('.expicker-trigger').click()
+  await page.locator('.expicker input').fill('Chest Press, Incline, DB')
+  await pause(200)
+  await page.locator('.expicker-row', { hasText: 'Chest Press, Incline, DB' }).click()
   await pause(900)
   await shot('04-autofill')
 
@@ -96,6 +99,10 @@ if (await startBtn.count()) {
     await page.getByRole('button', { name: 'Log set', exact: true }).click()
     await pause(600)
     await shot('08-resting')
+    await page.locator('.completed .section-toggle').click()           // expand Completed
+    await pause(200)
+    await page.locator('.completed .entry button.ghost').first().click()  // ✎ on the logged set
+    await pause(150)
     await page.locator('button.ghost.danger').first().click()          // ✕ on the logged set
     await pause(200)
     await page.getByRole('button', { name: 'Delete', exact: true }).click()  // confirm modal
