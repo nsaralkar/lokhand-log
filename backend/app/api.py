@@ -209,6 +209,20 @@ def routines(user=Depends(current_user)):
     return load_routines()
 
 
+@router.get("/routines/{slug}/preview")
+def routine_preview(slug: str, day: Optional[str] = None, user=Depends(current_user)):
+    """The relevant day's raw YAML, for a look-before-you-start confirmation
+    screen (no side effects — starting the session is a separate call)."""
+    routine = load_routines().get(slug)
+    if routine is None:
+        raise HTTPException(404, "routine not found")
+    d = find_day(routine, day)
+    if d is None:
+        raise HTTPException(404, "day not found")
+    return {"name": d.get("name") or routine.get("name"),
+            "yaml": yaml.safe_dump(d, sort_keys=False, allow_unicode=True)}
+
+
 # ---------- analytics ----------
 
 @router.get("/analytics/volume")

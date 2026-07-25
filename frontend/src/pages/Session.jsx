@@ -4,6 +4,7 @@ import { get, post, patch, del, WEIGHT_UNIT, exColor, fmtSet, scoreLabel, scoreF
 import { unlockAudio, beep } from '../audio'
 import Confirm from '../components/Confirm'
 import ExercisePicker from '../components/ExercisePicker'
+import RoutinePreview from '../components/RoutinePreview'
 
 // Fixed taxonomy — mirrors backend config.MUSCLE_GROUPS (used by the add form).
 const MUSCLE_GROUPS = ['chest', 'back', 'shoulders', 'biceps', 'triceps',
@@ -42,6 +43,7 @@ export default function Session({ user, navigate, menuBtn }) {
   const [sessionNotes, setSessionNotes] = useState('') // freeform notes for the session
   const [notesOpen, setNotesOpen] = useState(false)    // session-notes box expanded
   const [err, setErr] = useState('')
+  const [preview, setPreview] = useState(null) // {slug, day, name, yaml} — routine-day look-before-you-start
   const wakeLock = useRef(null)
   const hydrated = useRef(false)
   const beeped = useRef(false)
@@ -190,6 +192,16 @@ export default function Session({ user, navigate, menuBtn }) {
     setLogged([]); setExTab('exercise'); setPlanCollapsed(true); setCompletedCollapsed(true); setSwapIdx(null)
     setTimer(null); setSetStartAt(Date.now())
     if (!r.plan?.length) setExText('')
+  }
+
+  // Look-before-you-start: fetch the day's raw YAML instead of jumping straight
+  // into the session. Starting is a separate, explicit step from the modal.
+  // day may be undefined (unnamed day) — find_day then falls back to the
+  // routine's first day, same as start() always has.
+  async function openPreview(slug, day) {
+    const qs = day ? `?day=${encodeURIComponent(day)}` : ''
+    const r = await get(`/routines/${encodeURIComponent(slug)}/preview${qs}`)
+    setPreview({ slug, day, name: r.name, yaml: r.yaml })
   }
 
   async function addExercise(form) {
@@ -353,7 +365,7 @@ export default function Session({ user, navigate, menuBtn }) {
               {(r.days || []).map((d, i) => (
                 <button className="big" key={d.name || i}
                   style={{ marginBottom: i < r.days.length - 1 ? 8 : 0 }}
-                  onClick={() => start(slug, d.name)}>{d.name || `Day ${i + 1}`}</button>
+                  onClick={() => openPreview(slug, d.name)}>{d.name || `Day ${i + 1}`}</button>
               ))}
               {!(r.days || []).length && <p className="muted">No days defined in this routine.</p>}
             </div>
@@ -362,6 +374,9 @@ export default function Session({ user, navigate, menuBtn }) {
         {!routineList.length && (
           <p className="muted">No routines yet. Drop a routine YAML in your data repo's <code>shared/routines/</code>.</p>
         )}
+        <RoutinePreview preview={preview}
+          onStart={() => { const p = preview; setPreview(null); start(p.slug, p.day) }}
+          onClose={() => setPreview(null)} />
       </>
     )
   }

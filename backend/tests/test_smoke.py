@@ -123,3 +123,15 @@ def test_add_exercise_appends_without_touching_existing_bytes(client):
     after2 = path.read_text()
     assert after2.startswith(after)
     assert created2["id"] in after2[len(after):]
+
+
+def test_routine_preview(client):
+    r = client.get("/api/routines/dumbbell_split/preview", params={"day": "Push Day"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["name"] == "Push Day"
+    assert "chest_press_db_incline" in body["yaml"]
+
+    assert client.get("/api/routines/dumbbell_split/preview",
+                      params={"day": "Nonexistent Day"}).status_code == 404
+    assert client.get("/api/routines/nope/preview", params={"day": "x"}).status_code == 404

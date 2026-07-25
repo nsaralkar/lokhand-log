@@ -199,6 +199,12 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .modal { max-width: 360px; width: 100%; margin: 0; }
 .modal .row button { min-height: 52px; }
 
+/* Routine-day preview: raw YAML in a scrollable block, above Start/Cancel */
+.modal.preview { max-height: 82vh; display: flex; flex-direction: column; }
+.yaml-preview { overflow: auto; max-height: 50vh; margin: 0 0 12px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 10px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+
 /* Hamburger drawer trigger — rendered inline by each page (no separate top bar),
    at the left edge to sit beside the left-side slide-in drawer. */
 .hamburger {
