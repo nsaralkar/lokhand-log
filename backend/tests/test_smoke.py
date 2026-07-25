@@ -76,3 +76,25 @@ def test_duration_and_distance_exercises(client):
     prs = {p["exercise_id"]: p for p in client.get("/api/analytics/prs").json()}
     assert prs[plank["id"]]["e1rm_lb"] == 45
     assert prs[carry["id"]]["distance_mi"] == 0.1
+
+
+def test_add_exercise_appends_without_touching_existing_bytes(client):
+    """A hand-edited exercises.yaml (comments, blank lines) must survive a new
+    exercise being added: only new bytes are appended, nothing is reformatted."""
+    from app import config
+    path = config.exercises_file()
+    before = path.read_text()
+
+    created = client.post("/api/exercises", json={
+        "name": "Test Curl", "primary": "biceps", "metric": "reps"}).json()
+
+    after = path.read_text()
+    assert after.startswith(before)
+    assert created["id"] in after[len(before):]
+
+    # A second add should append after the first, still preserving everything above.
+    created2 = client.post("/api/exercises", json={
+        "name": "Test Curl 2", "primary": "biceps", "metric": "reps"}).json()
+    after2 = path.read_text()
+    assert after2.startswith(after)
+    assert created2["id"] in after2[len(after):]

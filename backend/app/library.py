@@ -34,7 +34,13 @@ def _slugify(name: str) -> str:
 
 def add_exercise(ex: Exercise) -> Exercise:
     """Persist a new exercise. If its id is blank, derive a unique slug from the
-    name (frontend-created exercises don't supply an id)."""
+    name (frontend-created exercises don't supply an id).
+
+    Appends the new entry's YAML block to the end of the file rather than
+    reloading and re-dumping every existing entry -- exercises.yaml is hand-
+    edited (comments, blank lines, multi-line notes) and a full round-trip
+    through yaml.safe_dump would flatten all of that formatting away. The
+    file on disk is treated as opaque text; only the appended bytes are new."""
     exercises = load_exercises()
     if not ex.id:
         base = _slugify(ex.name)
@@ -44,12 +50,14 @@ def add_exercise(ex: Exercise) -> Exercise:
         ex = ex.model_copy(update={"id": slug})
     if ex.id in exercises:
         raise ValueError(f"exercise id exists: {ex.id}")
-    exercises[ex.id] = ex
     path = config.exercises_file()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump(
-        {e.id: e.model_dump(exclude_none=True, exclude={"id"}) for e in exercises.values()},
-        sort_keys=False, allow_unicode=True))
+    entry_yaml = yaml.safe_dump(
+        {ex.id: ex.model_dump(exclude_none=True, exclude={"id"})},
+        sort_keys=False, allow_unicode=True)
+    existing = path.read_text() if path.exists() else ""
+    sep = "" if not existing or existing.endswith("\n\n") else ("\n" if existing.endswith("\n") else "\n\n")
+    path.write_text(existing + sep + entry_yaml)
     from .storage import git_commit
     git_commit(f"library: add exercise {ex.id}")
     return ex
