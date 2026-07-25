@@ -78,6 +78,31 @@ def test_duration_and_distance_exercises(client):
     assert prs[carry["id"]]["distance_mi"] == 0.1
 
 
+def test_cardio_exercise_tracks_no_weight(client):
+    """Running/cycling/etc: duration or distance metric, no weight concept at all
+    (as opposed to bodyweight movements, which track added/assist weight)."""
+    run = client.post("/api/exercises", json={
+        "name": "Easy Run", "primary": "cardio", "metric": "distance"}).json()
+    assert run["primary"] == "cardio"
+
+    sid = client.post("/api/sessions/start", json={}).json()["session_id"]
+    r = client.post("/api/sets", json={
+        "session_id": sid, "exercise_id": run["id"], "distance_mi": 3.1})
+    assert r.status_code == 200
+
+    detail = client.get(f"/api/sessions/{sid}").json()
+    set_row = next(e for e in detail["entries"] if e["type"] == "set")
+    assert set_row["distance_mi"] == 3.1
+    assert "weight_lb" not in set_row and "added_weight_lb" not in set_row
+
+    prog = client.get(f"/api/analytics/exercises/{run['id']}/progression").json()
+    assert prog["sessions"][0]["sets"][0]["distance_mi"] == 3.1
+
+    # Doesn't corrupt tonnage-based analytics either.
+    assert client.get("/api/analytics/volume").status_code == 200
+    assert client.get("/api/analytics/muscle-volume").status_code == 200
+
+
 def test_add_exercise_appends_without_touching_existing_bytes(client):
     """A hand-edited exercises.yaml (comments, blank lines) must survive a new
     exercise being added: only new bytes are appended, nothing is reformatted."""

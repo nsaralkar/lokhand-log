@@ -32,7 +32,7 @@ export const fmtDuration = (s) => {
 export const MUSCLE_COLORS = {
   chest: '#d64541', back: '#3b7dd8', shoulders: '#e8b72e', quads: '#3fa66a',
   hamstrings: '#7bc47f', glutes: '#9b59b6', biceps: '#5dade2', triceps: '#ec7063',
-  calves: '#48c9b0', core: '#95a5a6',
+  calves: '#48c9b0', core: '#95a5a6', cardio: '#e67e22',
 }
 
 // The dot color that subtly tags an exercise in any list, keyed by its primary

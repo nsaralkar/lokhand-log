@@ -27,9 +27,11 @@ DEFAULT_REST_BETWEEN_BLOCK_S = int(os.environ.get("LOKHAND_LOG_REST_BETWEEN_S", 
 DEFAULT_REST_END_BLOCK_S = int(os.environ.get("LOKHAND_LOG_REST_END_S", 60))
 
 # Fixed muscle-group taxonomy. Exercises must use these for `primary`/`secondary`.
+# `cardio` is a pseudo-group for duration/distance activities (running, cycling,
+# rowing...) that have no real primary muscle to attribute tonnage to.
 MUSCLE_GROUPS = [
     "chest", "back", "shoulders", "biceps", "triceps",
-    "quads", "hamstrings", "glutes", "calves", "core",
+    "quads", "hamstrings", "glutes", "calves", "core", "cardio",
 ]
 
 

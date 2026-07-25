@@ -7,7 +7,7 @@ import ExercisePicker from '../components/ExercisePicker'
 
 // Fixed taxonomy — mirrors backend config.MUSCLE_GROUPS (used by the add form).
 const MUSCLE_GROUPS = ['chest', 'back', 'shoulders', 'biceps', 'triceps',
-  'quads', 'hamstrings', 'glutes', 'calves', 'core']
+  'quads', 'hamstrings', 'glutes', 'calves', 'core', 'cardio']
 // Active workout is persisted here so switching tabs (which unmounts this page)
 // and coming back resumes exactly where you left off.
 const RESUME_KEY = 'ironlog.active'
@@ -108,6 +108,9 @@ export default function Session({ user, navigate, menuBtn }) {
   const isBw = exercise?.bodyweight
   const metric = exercise?.metric || 'reps'
   const qtyUnit = metric === 'duration' ? 'sec' : metric === 'distance' ? 'mi' : 'reps'
+  // No weight concept for pure duration/distance cardio (running, cycling...);
+  // bodyweight movements still track their added/assist weight regardless of metric.
+  const showWeight = metric === 'reps' || isBw
 
   // Progression for the selected exercise — feeds the History/Trend subtabs and
   // prefills the entry with the last set's values when you switch exercises.
@@ -218,7 +221,7 @@ export default function Session({ user, navigate, menuBtn }) {
       else if (metric === 'distance') body.distance_mi = qty
       else body.reps = qty
       if (isBw) body.added_weight_lb = weight ?? 0
-      else body.weight_lb = weight
+      else if (metric === 'reps') body.weight_lb = weight
       const r = await post('/sets', body)
       setLogged((l) => [{ ...body, id: r.id }, ...l])  // optimistic; reconciled below
       refreshLogged(session.session_id)
@@ -397,11 +400,13 @@ export default function Session({ user, navigate, menuBtn }) {
             {adding && <AddExerciseForm onSubmit={addExercise} />}
 
             <div className="fields">
-              <div className="field">
-                <input className="numval" inputMode="decimal" value={weight ?? ''}
-                  onChange={(e) => setWeight(e.target.value === '' ? null : Number(e.target.value))} />
-                <span className="unit">{WEIGHT_UNIT}</span>
-              </div>
+              {showWeight && (
+                <div className="field">
+                  <input className="numval" inputMode="decimal" value={weight ?? ''}
+                    onChange={(e) => setWeight(e.target.value === '' ? null : Number(e.target.value))} />
+                  <span className="unit">{WEIGHT_UNIT}</span>
+                </div>
+              )}
               <div className="field">
                 <input className="numval" inputMode={metric === 'distance' ? 'decimal' : 'numeric'} value={qty ?? ''}
                   onChange={(e) => setQty(e.target.value === '' ? null : Number(e.target.value))} />
