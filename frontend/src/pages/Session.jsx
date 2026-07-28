@@ -607,7 +607,7 @@ export default function Session({ user, navigate, menuBtn }) {
           {!notesOpen && sessionNotes.trim() && <span className="notes-dot" />}
         </button>
         {notesOpen && (
-          <textarea className="notes-area" rows={4} value={sessionNotes}
+          <textarea className="notes-area no-autoselect" rows={4} value={sessionNotes}
             placeholder="How did the session go? Energy, aches, PRs…"
             onChange={(e) => setSessionNotes(e.target.value)} />
         )}
