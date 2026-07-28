@@ -7,7 +7,7 @@ cp -r lokhand-log/data-example /srv/fitness-data
 cd /srv/fitness-data
 # replace the demo user:
 cd /path/to/lokhand-log/backend
-uv run python -c "from app.auth import hash_password; print(hash_password('YOUR_PASSWORD'))"
+uv run python -c "from app.auth import hash_password; import getpass; print(hash_password(getpass.getpass()))"
 # paste the hash into /srv/fitness-data/config/users.yaml; delete the demo user
 # and the users/demo directory; create users/<yourname>/{workouts,metrics}
 cd /srv/fitness-data && git init && git add -A && git commit -m init
