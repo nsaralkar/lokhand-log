@@ -58,14 +58,39 @@ fixed muscle-group taxonomy (see `backend/app/config.py`).
 
 ```yaml
 chest_press_db_incline:
-  name: Chest Press, Incline, DB
-  equipment: dumbbell        # barbell | dumbbell | cable | machine | bodyweight
-  primary: chest
-  secondary: [triceps, shoulders]
-  bodyweight: false          # true = load is body weight ± added/assist
-  default_rest_s: 120
-  notes: Bench at 30°...     # optional form cues, shown on the app's Info tab
+  name: Chest Press, Incline, DB     # required: display name
+  equipment: dumbbell                # optional: barbell | dumbbell | cable | machine | bodyweight
+  primary: chest                     # required: one muscle group from the taxonomy below
+  secondary: [triceps, shoulders]    # optional: list from the same taxonomy
+  metric: reps                       # optional (default reps): reps | duration | distance
+  bodyweight: false                  # optional (default false): true = load is body weight ± added/assist
+  default_rest_s: 120                # optional (default 120): rest-timer length in seconds
+  notes: Bench at 30°...             # optional: form cues / setup reminders, shown on the app's Info tab
 ```
+
+Field reference:
+
+- **`name`** (required) — free text, shown everywhere in the UI.
+- **`equipment`** (optional) — `barbell | dumbbell | cable | machine | bodyweight`. Informational
+  only; nothing keys off it server-side.
+- **`primary`** (required), **`secondary`** (optional list) — muscle group(s) from the fixed
+  taxonomy: `chest back shoulders biceps triceps quads hamstrings glutes calves core cardio`.
+  `cardio` is a pseudo-group for duration/distance activities (running, cycling, rowing...)
+  that have no real primary muscle to attribute tonnage to. Drives the muscle-volume chart
+  and each exercise's color dot.
+- **`metric`** (optional, default `reps`) — what a set of this exercise records:
+  - `reps` — weight × reps (the default lift shape).
+  - `duration` — a held/timed set in seconds (planks, dead hangs), no weight field unless
+    the exercise is also `bodyweight: true`.
+  - `distance` — a set in miles (loaded carries, sled pushes), same no-weight rule as `duration`.
+  - PRs/progression use e1RM for `reps` exercises, and the best raw duration/distance otherwise.
+- **`bodyweight`** (optional, default `false`) — `true` means the load is the athlete's own body
+  weight, ± an added/assist weight (belt/vest = positive, band/machine assist = negative, `0` =
+  strict bodyweight). Bodyweight exercises always show the weight field, regardless of `metric`,
+  and their added/assist weight has its own history separate from the tonnage of non-bodyweight lifts.
+- **`default_rest_s`** (optional, default `120`) — seconds on the rest timer after a set of this
+  exercise, when the routine block doesn't override it (see Routines below).
+- **`notes`** (optional) — free text, shown on the app's Info tab for that exercise.
 
 Set and cardio entries reference an exercise by its id (the `exercise_id`
 field); routines reference it too. Those are the map keys here.
