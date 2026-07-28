@@ -31,6 +31,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [editVal, setEditVal] = useState({ weight: '', kind: 'reps', qty: '' })
   const [adding, setAdding] = useState(false)  // add-exercise form open
   const [confirmId, setConfirmId] = useState(null) // set pending delete
+  const [confirmFinish, setConfirmFinish] = useState(false) // finish-workout pending confirmation
   const [planCollapsed, setPlanCollapsed] = useState(true) // hide the rows below the current one
   const [completedCollapsed, setCompletedCollapsed] = useState(true) // hide the logged-set rows
   const [pickerOpen, setPickerOpen] = useState(false) // main exercise-picker modal
@@ -344,7 +345,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   async function endSession() {
     await post(`/sessions/${session.session_id}/end`, { notes: sessionNotes.trim() || undefined })
     setSession(null); setTimer(null); setExText(''); setLogged([])
-    setSessionNotes(''); setNotesOpen(false)
+    setSessionNotes(''); setNotesOpen(false); setConfirmFinish(false)
   }
 
   if (!session) {
@@ -610,7 +611,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         )}
       </div>
 
-      <button className="big danger" onClick={endSession}>Finish workout</button>
+      <button className="big danger" onClick={() => setConfirmFinish(true)}>Finish workout</button>
 
       <ExercisePicker open={pickerOpen} exercises={exercises} value={exText}
         onSelect={(name) => { setExText(name); setPickerOpen(false) }}
@@ -624,6 +625,10 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
       <Confirm open={confirmId != null}
         message="Delete this set? git history keeps the audit trail."
         onConfirm={() => deleteSet(confirmId)} onCancel={() => setConfirmId(null)} />
+
+      <Confirm open={confirmFinish}
+        message="Finish this workout? You won't be able to log more sets to it."
+        confirmLabel="Finish" onConfirm={endSession} onCancel={() => setConfirmFinish(false)} />
     </>
   )
 }
