@@ -7,10 +7,10 @@ const LINKS = [
   ['body', 'Body'],
 ]
 
-export default function Home({ navigate, menuBtn }) {
+export default function Home({ navigate, menuBtn, workoutClock }) {
   return (
     <>
-      <div className="pagehead">{menuBtn}<h1>Lokhand Log</h1></div>
+      <div className="pagehead">{menuBtn}<h1>Lokhand Log</h1>{workoutClock}</div>
       <div className="card home-links">
         {LINKS.map(([tab, label]) => (
           <button key={tab} className="big" onClick={() => navigate(tab)}>{label}</button>

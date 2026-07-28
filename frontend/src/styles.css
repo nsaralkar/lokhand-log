@@ -215,6 +215,11 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 /* Page header (nav) row: hamburger on the left, then the page title */
 .pagehead { display: flex; align-items: center; gap: 4px; }
 .pagehead h1 { margin: 0; }
+/* Active-workout running time, wherever you've navigated to */
+.pagehead-clock {
+  margin-left: auto; font-variant-numeric: tabular-nums; font-size: 14px;
+  color: var(--accent);
+}
 /* Session-detail header: name + summary on the left, edit affordance on the right */
 .sess-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 

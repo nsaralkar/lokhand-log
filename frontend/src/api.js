@@ -28,6 +28,18 @@ export const fmtDuration = (s) => {
   return m ? `${m}m ${sec}s` : `${sec}s`
 }
 
+// Active-workout state persisted across tab switches/reloads (see Session.jsx).
+// Shared here so App.jsx can read it too, for the header clock.
+export const RESUME_KEY = 'ironlog.active'
+
+// H:MM:SS (or M:SS under an hour) — the running clock beside the header title.
+export const fmtElapsed = (ms) => {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
+  const mm = h ? String(m).padStart(2, '0') : m
+  return (h ? `${h}:${mm}` : mm) + ':' + String(sec).padStart(2, '0')
+}
+
 // Bumper-plate palette for muscle-group chart series.
 export const MUSCLE_COLORS = {
   chest: '#d64541', back: '#3b7dd8', shoulders: '#e8b72e', quads: '#3fa66a',

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { get, patch, del, WEIGHT_UNIT, fmtDuration, fmtSet, exColor } from '../api'
 import Confirm from '../components/Confirm'
 
-export default function History({ openSession: deepLink, onOpened, menuBtn }) {
+export default function History({ openSession: deepLink, onOpened, menuBtn, workoutClock }) {
   const [sessions, setSessions] = useState([])
   const [open, setOpen] = useState(null)      // session summary
   const [editing, setEditing] = useState(null) // entry being edited
@@ -71,6 +71,7 @@ export default function History({ openSession: deepLink, onOpened, menuBtn }) {
         <div className="pagehead">
           {menuBtn}
           <button className="ghost" onClick={() => { setOpen(null); setSessEdit(null); load() }}>← Sessions</button>
+          {workoutClock}
         </div>
         <div className="sess-head">
           <div>
@@ -159,7 +160,7 @@ export default function History({ openSession: deepLink, onOpened, menuBtn }) {
 
   return (
     <>
-      <div className="pagehead">{menuBtn}<h1>History</h1></div>
+      <div className="pagehead">{menuBtn}<h1>History</h1>{workoutClock}</div>
       {sessions.map((s) => (
         <div className="card" key={s.session_id} onClick={() => openSession(s.session_id)}
           style={{ cursor: 'pointer' }}>

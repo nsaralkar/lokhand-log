@@ -8,7 +8,7 @@ import { get, WEIGHT_UNIT, MUSCLE_COLORS, exColor, fmtSet, scoreLabel, scoreFmt 
 const axis = { stroke: '#8a94a2', fontSize: 12 }
 const tip = { contentStyle: { background: '#262c36', border: '1px solid #3d4653', borderRadius: 8, color: '#edeff2' } }
 
-export default function Trends({ menuBtn }) {
+export default function Trends({ menuBtn, workoutClock }) {
   const [volume, setVolume] = useState([])
   const [sessVol, setSessVol] = useState([])
   const [muscle, setMuscle] = useState({ muscle_groups: [], data: [] })
@@ -44,7 +44,7 @@ export default function Trends({ menuBtn }) {
 
   return (
     <>
-      <div className="pagehead">{menuBtn}<h1>Trends</h1></div>
+      <div className="pagehead">{menuBtn}<h1>Trends</h1>{workoutClock}</div>
 
       <h2>Weekly volume ({WEIGHT_UNIT})</h2>
       <div className="card" style={{ height: 220 }}>

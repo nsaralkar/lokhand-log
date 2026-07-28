@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts'
-import { get, post, patch, del, WEIGHT_UNIT, exColor, fmtSet, scoreLabel, scoreFmt } from '../api'
+import { get, post, patch, del, WEIGHT_UNIT, RESUME_KEY, exColor, fmtSet, scoreLabel, scoreFmt } from '../api'
 import { unlockAudio, beep } from '../audio'
 import Confirm from '../components/Confirm'
 import ExercisePicker from '../components/ExercisePicker'
@@ -9,13 +9,10 @@ import RoutinePreview from '../components/RoutinePreview'
 // Fixed taxonomy — mirrors backend config.MUSCLE_GROUPS (used by the add form).
 const MUSCLE_GROUPS = ['chest', 'back', 'shoulders', 'biceps', 'triceps',
   'quads', 'hamstrings', 'glutes', 'calves', 'core', 'cardio']
-// Active workout is persisted here so switching tabs (which unmounts this page)
-// and coming back resumes exactly where you left off.
-const RESUME_KEY = 'ironlog.active'
 const axis = { stroke: '#8a94a2', fontSize: 12 }
 const tip = { contentStyle: { background: '#262c36', border: '1px solid #3d4653', borderRadius: 8, color: '#edeff2' } }
 
-export default function Session({ user, navigate, menuBtn }) {
+export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [exercises, setExercises] = useState([])
   const [exErr, setExErr] = useState('')
   const [routines, setRoutines] = useState({})
@@ -188,7 +185,7 @@ export default function Session({ user, navigate, menuBtn }) {
 
   async function start(routine, day) {
     const r = await post('/sessions/start', { routine, day })
-    setSession({ session_id: r.session_id, plan: r.plan, planIdx: 0 })
+    setSession({ session_id: r.session_id, plan: r.plan, planIdx: 0, startedAt: Date.now() })
     setLogged([]); setExTab('exercise'); setPlanCollapsed(true); setCompletedCollapsed(true); setSwapIdx(null)
     setTimer(null); setSetStartAt(Date.now())
     if (!r.plan?.length) setExText('')
@@ -354,7 +351,7 @@ export default function Session({ user, navigate, menuBtn }) {
     const routineList = Object.entries(routines)
     return (
       <>
-        <div className="pagehead">{menuBtn}<h1>Workout</h1></div>
+        <div className="pagehead">{menuBtn}<h1>Workout</h1>{workoutClock}</div>
         <div className="card">
           <button className="big primary" onClick={() => start()}>Start empty workout</button>
         </div>
