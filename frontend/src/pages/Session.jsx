@@ -137,11 +137,20 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   // normal advance after logging a set as well as edits (swap/reorder) that
   // change what's current. Only overrides once the plan actually has a current
   // row; once it's exhausted, whatever's in the picker is the lifter's own pick.
+  //
+  // `exercises` is a dependency because the picker holds a *name* while the plan
+  // holds an id: on a remount (tab switch) the library is still in flight, so
+  // this runs once with nothing to resolve against and again once it lands.
+  // Without the rerun the raw yaml id ("deadlift_single_alt_db") stuck in the
+  // field, matched no exercise, and Log set stayed disabled.
   useEffect(() => {
     if (!hydrated.current) return
     const cur = session?.plan?.[session.planIdx]
-    if (cur) setExText(nameOf(cur.exercise_id))
-  }, [session?.plan, session?.planIdx])
+    if (!cur) return
+    const ex = exercises.find((e) => e.id === cur.exercise_id)
+    if (ex) setExText(ex.name)
+    else if (exercises.length) setExText('')  // planned id isn't in the library — prompt for a pick
+  }, [session?.plan, session?.planIdx, exercises])
 
   const history = useMemo(() => prog.slice(-3).reverse(), [prog])
   const trend = useMemo(
