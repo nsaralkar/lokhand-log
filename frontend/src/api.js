@@ -53,12 +53,13 @@ export const exColor = (primary) => MUSCLE_COLORS[primary] || '#7e8894'
 
 // Formats one logged/planned set for display regardless of which metric it
 // used — reps×load, a duration, or a distance. Accepts either raw entry shape
-// (weight_lb/added_weight_lb) or resolved progression-set shape (load_lb).
+// (weight_lb) or resolved progression-set shape (load_lb). A load of 0 is
+// bodyweight and a negative one is assisted — both print as the number.
 export const fmtSet = (s) => {
   if (s.duration_s != null) return fmtDuration(s.duration_s)
   if (s.distance_mi != null) return `${s.distance_mi} mi`
   const load = s.load_lb ?? s.weight_lb ?? s.added_weight_lb
-  return `${load ?? 'bw'}×${s.reps}`
+  return `${load ?? '—'}×${s.reps}`
 }
 
 // PR/progression score label + formatting: e1RM for reps-based lifts, the raw

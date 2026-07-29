@@ -41,7 +41,6 @@ pullup:
   secondary:
   - biceps
   - core
-  bodyweight: true
   default_rest_s: 150
   notes: Dead hang to chin over the bar. Add weight on a belt once you clear 10 clean reps.
 rdl_db:

@@ -141,7 +141,8 @@ export default function History({ openSession: deepLink, onOpened, menuBtn, work
                     <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
                       onClick={() => setEditing({ id: e.id,
                         kind: e.duration_s != null ? 'duration_s' : e.distance_mi != null ? 'distance_mi' : 'reps',
-                        qty: e.duration_s ?? e.distance_mi ?? e.reps, weight: e.weight_lb })}>✎</button>
+                        qty: e.duration_s ?? e.distance_mi ?? e.reps,
+                        weight: e.weight_lb ?? e.added_weight_lb })}>✎</button>
                   )}
                 </div>
               )}

@@ -77,17 +77,16 @@ chest_press_db_incline:      # id: referenced by set entries and routines
   primary: chest             # required: one muscle group from the fixed taxonomy
   secondary: [triceps, shoulders]   # optional list from the same taxonomy
   metric: reps               # optional (default reps): reps | duration | distance — how sets are counted
-  bodyweight: false          # optional: true = load is body weight ± added/assist
   default_rest_s: 120        # optional (default 120): rest-timer length
   notes: Bench at 30°...      # optional: form cues, shown on the app's Info tab
 ```
 
 `metric` picks the shape of a logged set: `reps` is weight×reps (the default); `duration`
 is a held/timed set in seconds (planks, holds); `distance` is a set in miles (carries, runs).
-Duration/distance exercises skip the weight field unless they're also `bodyweight: true`,
-since bodyweight movements always track their own added/assist weight. Full field-by-field
-detail, including how `bodyweight` and `metric` interact and drive PR scoring, is in
-`docs/DATA_FORMAT.md`.
+Duration/distance exercises skip the weight field. Weight is always *external* load, so
+`0` is a bodyweight set and a negative value is an assisted one — there's no separate
+bodyweight flag. Full field-by-field detail, including how `metric` drives PR scoring, is
+in `docs/DATA_FORMAT.md`.
 
 Taxonomy: `chest back shoulders biceps triceps quads hamstrings glutes calves core cardio`
 (`cardio` is a pseudo-group for duration/distance activities with no real primary muscle).

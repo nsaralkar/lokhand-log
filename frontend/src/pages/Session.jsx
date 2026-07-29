@@ -59,7 +59,9 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
 
   const nameOf = (id) => exercises.find((e) => e.id === id)?.name || id
   const colorOf = (id) => exColor(exercises.find((e) => e.id === id)?.primary)
-  const isBwOf = (id) => !!exercises.find((e) => e.id === id)?.bodyweight
+  // Which entry field a set of this exercise fills, and how that field reads.
+  const kindOf = (metric) => metric === 'duration' ? 'duration_s' : metric === 'distance' ? 'distance_mi' : 'reps'
+  const unitOf = (kind) => kind === 'duration_s' ? 'sec' : kind === 'distance_mi' ? 'mi' : 'reps'
 
   // The Completed list is the server's truth, not a client-side copy — so it
   // always reflects the actual file (incl. edits made directly to the JSONL).
@@ -105,12 +107,11 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     () => exercises.find((e) => e.name === exText),
     [exercises, exText])
   const exerciseId = exercise?.id || ''
-  const isBw = exercise?.bodyweight
   const metric = exercise?.metric || 'reps'
-  const qtyUnit = metric === 'duration' ? 'sec' : metric === 'distance' ? 'mi' : 'reps'
-  // No weight concept for pure duration/distance cardio (running, cycling...);
-  // bodyweight movements still track their added/assist weight regardless of metric.
-  const showWeight = metric === 'reps' || isBw
+  const qtyUnit = unitOf(kindOf(metric))
+  // No weight concept for pure duration/distance work (planks, running...). For
+  // everything else the field always shows: 0 is bodyweight, negative is assisted.
+  const showWeight = metric === 'reps'
 
   // Progression for the selected exercise — feeds the History/Trend subtabs and
   // prefills the entry with the last set's values when you switch exercises.
@@ -122,13 +123,8 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
       .then((p) => {
         setProg(p.sessions)
         const last = p.sessions.at(-1)?.sets.at(-1)
-        if (autoPop.current) {
-          // bw movements have their own added-weight history (often 0) —
-          // recall it instead of leaving the previous exercise's weight in the field.
-          if (isBw) setWeight(last?.added_weight_lb ?? 0)
-          else if (last) setWeight(last.load_lb)  // load_lb == weight for non-bw
-        }
         if (autoPop.current && last) {
+          setWeight(last.load_lb)
           setQty(last.duration_s ?? last.distance_mi ?? last.reps)
           setRpe(last.rpe ?? null)            // RPE recalls the last set too
         }
@@ -210,7 +206,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         primary: form.primary,
         metric: form.metric,
         equipment: form.equipment || undefined,
-        bodyweight: form.bodyweight,
         default_rest_s: Number(form.default_rest_s) || 120,
       })
       await loadExercises()
@@ -227,11 +222,8 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         session_id: session.session_id, exercise_id: exerciseId,
         rpe: rpe || undefined,
       }
-      if (metric === 'duration') body.duration_s = qty
-      else if (metric === 'distance') body.distance_mi = qty
-      else body.reps = qty
-      if (isBw) body.added_weight_lb = weight ?? 0
-      else if (metric === 'reps') body.weight_lb = weight
+      body[kindOf(metric)] = qty
+      if (showWeight) body.weight_lb = weight
       const r = await post('/sets', body)
       setLogged((l) => [{ ...body, id: r.id }, ...l])  // optimistic; reconciled below
       refreshLogged(session.session_id)
@@ -323,9 +315,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
 
   async function saveEdit(l) {
     const p = { [editVal.kind]: Number(editVal.qty) }
-    const w = editVal.weight === '' ? null : Number(editVal.weight)
-    if (isBwOf(l.exercise_id)) p.added_weight_lb = w ?? 0
-    else p.weight_lb = w
+    p.weight_lb = editVal.weight === '' ? null : Number(editVal.weight)
     try {
       await patch(`/entries/${l.id}`, p)
       setEditId(null)
@@ -635,7 +625,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
 
 function AddExerciseForm({ onSubmit }) {
   const [f, setF] = useState({
-    name: '', primary: 'chest', metric: 'reps', equipment: '', bodyweight: false, default_rest_s: 120 })
+    name: '', primary: 'chest', metric: 'reps', equipment: '', default_rest_s: 120 })
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }))
   return (
     <div className="card" style={{ background: 'var(--surface-2)', marginTop: 8 }}>
@@ -664,11 +654,6 @@ function AddExerciseForm({ onSubmit }) {
       <label>Equipment (optional)</label>
       <input value={f.equipment} onChange={(e) => set('equipment', e.target.value)}
         placeholder="dumbbell / barbell / cable / machine" />
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, textTransform: 'none' }}>
-        <input type="checkbox" style={{ width: 20, minHeight: 0 }}
-          checked={f.bodyweight} onChange={(e) => set('bodyweight', e.target.checked)} />
-        Bodyweight movement
-      </label>
       <button className="big primary" style={{ marginTop: 10 }}
         disabled={!f.name.trim()} onClick={() => onSubmit(f)}>Add exercise</button>
     </div>

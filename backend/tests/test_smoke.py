@@ -79,8 +79,7 @@ def test_duration_and_distance_exercises(client):
 
 
 def test_cardio_exercise_tracks_no_weight(client):
-    """Running/cycling/etc: duration or distance metric, no weight concept at all
-    (as opposed to bodyweight movements, which track added/assist weight)."""
+    """Running/cycling/etc: duration or distance metric, no weight concept at all."""
     run = client.post("/api/exercises", json={
         "name": "Easy Run", "primary": "cardio", "metric": "distance"}).json()
     assert run["primary"] == "cardio"
@@ -101,6 +100,35 @@ def test_cardio_exercise_tracks_no_weight(client):
     # Doesn't corrupt tonnage-based analytics either.
     assert client.get("/api/analytics/volume").status_code == 200
     assert client.get("/api/analytics/muscle-volume").status_code == 200
+
+
+def test_weight_is_external_load_only(client):
+    """0 lb is a bodyweight set and negative is assisted — neither is special-
+    cased, and body weight is never added into tonnage."""
+    client.post("/api/metrics", json={"metric": "weight", "value": 180.0, "unit": "lb"})
+    sid = client.post("/api/sessions/start", json={}).json()["session_id"]
+    client.post("/api/sets", json={
+        "session_id": sid, "exercise_id": "pullup", "weight_lb": 0, "reps": 10})
+    client.post("/api/sets", json={
+        "session_id": sid, "exercise_id": "pullup", "weight_lb": -20, "reps": 10})
+
+    detail = client.get(f"/api/sessions/{sid}").json()
+    assert detail["tonnage_lb"] == -200.0   # 0x10 + (-20)x10; no body weight folded in
+
+
+def test_legacy_added_weight_folds_into_weight_on_edit(client):
+    """Pre-2026-07 bodyweight sets stored their load as added_weight_lb. It reads
+    as the load today, and an edit migrates the entry to the one weight field."""
+    sid = client.post("/api/sessions/start", json={}).json()["session_id"]
+    eid = client.post("/api/sets", json={
+        "session_id": sid, "exercise_id": "pullup",
+        "added_weight_lb": 25, "reps": 5}).json()["id"]
+
+    prog = client.get("/api/analytics/exercises/pullup/progression").json()
+    assert prog["sessions"][-1]["sets"][-1]["load_lb"] == 25
+
+    fixed = client.patch(f"/api/entries/{eid}", json={"reps": 6}).json()
+    assert fixed["weight_lb"] == 25 and "added_weight_lb" not in fixed
 
 
 def test_add_exercise_appends_without_touching_existing_bytes(client):

@@ -21,7 +21,7 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
 ```json
 {"id":"a1b2c3d4e5f6","ts":"2026-07-04T09:12:31-04:00","type":"session_start","session_id":"9f8e7d6c5b4a","name":"Push Day","routine":"dumbbell_split","day":"Push Day"}
 {"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"chest_press_db_incline","weight_lb":100,"reps":12,"rpe":8,"notes":"felt strong"}
-{"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"pullup","added_weight_lb":25.0,"reps":6}
+{"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"pullup","weight_lb":25.0,"reps":6}
 {"id":"...","ts":"...","type":"cardio","session_id":"...","activity":"run","duration_s":1860,"distance_mi":3.1,"avg_hr":152}
 {"id":"...","ts":"...","type":"session_end","session_id":"9f8e7d6c5b4a"}
 ```
@@ -31,9 +31,13 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
   it's recoverable from ordering and timestamps.
 - **Rest/exercise time = timestamp deltas.** The API computes `since_prev_s`
   per entry; nothing extra is stored.
-- **Bodyweight movements** omit `weight_lb` and use `added_weight_lb`
-  (positive = belt/vest, negative = assistance, 0 = strict bodyweight).
-  Tonnage uses the latest logged body weight when available.
+- **`weight_lb` is external load only** — what's on the bar, belt, or handle.
+  `0` is therefore a strict bodyweight set and a negative value is an assisted
+  one (band, machine). Body weight itself is never folded into tonnage, so the
+  number means the same thing for every exercise and doesn't drift when the
+  athlete's weight does. (`added_weight_lb` in pre-2026-07 entries is the same
+  quantity under the old name; it's read as `weight_lb` and rewritten on edit.)
+  Duration/distance sets normally carry no weight at all.
 - `warmup: true` excludes a set from volume/PR analytics.
 - **Session lifecycle:** `session_start` opens; `session_end` closes; an open
   session idle for >3h (configurable) gets an `auto_closed` end stamped at its
@@ -63,7 +67,6 @@ chest_press_db_incline:
   primary: chest                     # required: one muscle group from the taxonomy below
   secondary: [triceps, shoulders]    # optional: list from the same taxonomy
   metric: reps                       # optional (default reps): reps | duration | distance
-  bodyweight: false                  # optional (default false): true = load is body weight ± added/assist
   default_rest_s: 120                # optional (default 120): rest-timer length in seconds
   notes: Bench at 30°...             # optional: form cues / setup reminders, shown on the app's Info tab
 ```
@@ -80,14 +83,9 @@ Field reference:
   and each exercise's color dot.
 - **`metric`** (optional, default `reps`) — what a set of this exercise records:
   - `reps` — weight × reps (the default lift shape).
-  - `duration` — a held/timed set in seconds (planks, dead hangs), no weight field unless
-    the exercise is also `bodyweight: true`.
+  - `duration` — a held/timed set in seconds (planks, dead hangs); no weight field in the UI.
   - `distance` — a set in miles (loaded carries, sled pushes), same no-weight rule as `duration`.
   - PRs/progression use e1RM for `reps` exercises, and the best raw duration/distance otherwise.
-- **`bodyweight`** (optional, default `false`) — `true` means the load is the athlete's own body
-  weight, ± an added/assist weight (belt/vest = positive, band/machine assist = negative, `0` =
-  strict bodyweight). Bodyweight exercises always show the weight field, regardless of `metric`,
-  and their added/assist weight has its own history separate from the tonnage of non-bodyweight lifts.
 - **`default_rest_s`** (optional, default `120`) — seconds on the rest timer after a set of this
   exercise, when the routine block doesn't override it (see Routines below).
 - **`notes`** (optional) — free text, shown on the app's Info tab for that exercise.

@@ -36,8 +36,10 @@ class SetEntry(BaseEntry):
     type: Literal["set"] = "set"
     session_id: str
     exercise_id: str
-    weight_lb: Optional[float] = None      # None for pure bodyweight
-    added_weight_lb: Optional[float] = None  # bodyweight movements: +weight (belt) or -weight (assist)
+    # External load only: 0 means bodyweight (a strict pullup), negative means
+    # assisted (band/machine). Body weight itself is never part of the number.
+    weight_lb: Optional[float] = None
+    added_weight_lb: Optional[float] = None  # legacy: pre-2026-07 bodyweight sets; folded into weight_lb
     reps: Optional[int] = None
     duration_s: Optional[int] = None
     distance_mi: Optional[float] = None
@@ -55,6 +57,17 @@ class SetEntry(BaseEntry):
     def _one_metric(self):
         if sum(x is not None for x in (self.reps, self.duration_s, self.distance_mi)) != 1:
             raise ValueError("set needs exactly one of reps, duration_s, distance_mi")
+        return self
+
+    @model_validator(mode="after")
+    def _fold_legacy_added_weight(self):
+        """Older logs split load across weight_lb (external) and added_weight_lb
+        (bodyweight movements). There is one load field now, so a legacy entry
+        migrates the first time it's re-validated (i.e. on edit)."""
+        if self.added_weight_lb is not None:
+            if self.weight_lb is None:
+                self.weight_lb = self.added_weight_lb
+            self.added_weight_lb = None
         return self
 
 
@@ -113,7 +126,6 @@ class Exercise(BaseModel):
     primary: str
     secondary: list[str] = []
     metric: Literal["reps", "duration", "distance"] = "reps"  # how sets are counted
-    bodyweight: bool = False
     default_rest_s: int = 120
     notes: Optional[str] = None            # form cues / setup reminders, shown on the Info tab
 
