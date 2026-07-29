@@ -3,7 +3,7 @@
 const LINKS = [
   ['workout', 'Workout'],
   ['history', 'History'],
-  ['trends', 'Trends'],
+  ['stats', 'Stats'],
   ['body', 'Body'],
 ]
 

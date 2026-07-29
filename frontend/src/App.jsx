@@ -4,10 +4,10 @@ import Login from './pages/Login'
 import Home from './pages/Home'
 import Session from './pages/Session'
 import History from './pages/History'
-import Trends from './pages/Trends'
+import Stats from './pages/Stats'
 import Metrics from './pages/Metrics'
 
-const TABS = { home: Home, workout: Session, history: History, trends: Trends, body: Metrics }
+const TABS = { home: Home, workout: Session, history: History, stats: Stats, body: Metrics }
 
 export default function App() {
   const [user, setUser] = useState(undefined) // undefined = checking
