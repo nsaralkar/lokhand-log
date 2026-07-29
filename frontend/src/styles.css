@@ -184,6 +184,14 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
   text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid transparent; }
 .subtabs button.on { color: var(--ink); border-bottom-color: var(--accent); }
 
+/* Series switch above an exercise's trend chart (volume / e1RM). Pills rather
+   than another tab row — it picks what a chart draws, it doesn't change view. */
+.seg { display: flex; gap: 6px; margin: 8px 0 0; }
+.seg button { min-height: 32px; padding: 0 12px; border-radius: 999px;
+  font-family: var(--font-display); font-size: 13px; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--muted); background: none; border: 1px solid var(--line); }
+.seg button.on { color: var(--ink); border-color: var(--accent); }
+
 /* Tappable date that deep-links into a past workout */
 .linkdate { background: none; border: none; padding: 0; min-height: 0; font-weight: 500;
   color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }

@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts'
 import { get, post, patch, del, WEIGHT_UNIT, RESUME_KEY, exColor, fmtSet, scoreLabel, scoreFmt } from '../api'
 import { unlockAudio, beep } from '../audio'
 import Confirm from '../components/Confirm'
 import ExercisePicker from '../components/ExercisePicker'
+import ExerciseTrend from '../components/ExerciseTrend'
 import RoutinePreview from '../components/RoutinePreview'
 
 // Fixed taxonomy — mirrors backend config.MUSCLE_GROUPS (used by the add form).
 const MUSCLE_GROUPS = ['chest', 'back', 'shoulders', 'biceps', 'triceps',
   'quads', 'hamstrings', 'glutes', 'calves', 'core', 'cardio']
-const axis = { stroke: '#8a94a2', fontSize: 12 }
-const tip = { contentStyle: { background: '#262c36', border: '1px solid #3d4653', borderRadius: 8, color: '#edeff2' } }
 
 export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [exercises, setExercises] = useState([])
@@ -153,9 +151,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   }, [session?.plan, session?.planIdx, exercises])
 
   const history = useMemo(() => prog.slice(-3).reverse(), [prog])
-  const trend = useMemo(
-    () => prog.map((s) => ({ date: s.date, e1rm: s.e1rm_lb })),
-    [prog])
 
   // Keep the screen awake mid-session so the rest timer stays visible.
   useEffect(() => {
@@ -479,17 +474,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
                   ? <p className="muted">No history yet.</p>
                   : (
                     <>
-                      {trend.length > 1 && (
-                        <div style={{ height: 200, margin: '6px 0 10px' }}>
-                          <ResponsiveContainer>
-                            <LineChart data={trend}>
-                              <XAxis dataKey="date" {...axis} /><YAxis {...axis} width={44} domain={['auto', 'auto']} />
-                              <Tooltip {...tip} />
-                              <Line type="monotone" dataKey="e1rm" stroke="#3b7dd8" strokeWidth={2} />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
+                      <ExerciseTrend sessions={prog} metric={metric} />
                       {history.map((s) => (
                         <div className="entry" key={s.session_id}>
                           <div>

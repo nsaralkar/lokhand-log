@@ -102,6 +102,19 @@ def test_cardio_exercise_tracks_no_weight(client):
     assert client.get("/api/analytics/muscle-volume").status_code == 200
 
 
+def test_progression_reports_session_volume(client):
+    """Each session in a progression carries its total work, not just the top
+    set's e1RM — that's what the exercise trend plots by default."""
+    sid = client.post("/api/sessions/start", json={}).json()["session_id"]
+    for reps in (10, 8):
+        client.post("/api/sets", json={
+            "session_id": sid, "exercise_id": "goblet_squat_db",
+            "weight_lb": 50, "reps": reps})
+
+    sess = client.get("/api/analytics/exercises/goblet_squat_db/progression").json()["sessions"]
+    assert sess[-1]["volume_lb"] == 900.0   # 50x10 + 50x8
+
+
 def test_weight_is_external_load_only(client):
     """0 lb is a bodyweight set and negative is assisted — neither is special-
     cased, and body weight is never added into tonnage."""

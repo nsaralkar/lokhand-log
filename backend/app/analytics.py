@@ -99,6 +99,16 @@ def _set_score(row: dict) -> float:
     return row.get("distance_mi") or 0.0
 
 
+def _set_volume(row: dict) -> float:
+    """Work done in one set: load x reps for lifts, else the raw duration or
+    distance — the same generalization _set_score makes, summed not maxed."""
+    if row.get("reps") is not None:
+        return _set_load_lb(row) * row["reps"]
+    if row.get("duration_s") is not None:
+        return row["duration_s"]
+    return row.get("distance_mi") or 0.0
+
+
 def exercise_progression(username: str, exercise_id: str, limit_sessions: int = 50) -> dict:
     """Per-session top set + est. 1RM + full recent set detail — the
     'what should I do next' payload used by both the UI and the MCP tool."""
@@ -116,6 +126,7 @@ def exercise_progression(username: str, exercise_id: str, limit_sessions: int = 
             "top_load_lb": round(_set_load_lb(top), 1),
             "top_reps": top.get("reps"),
             "e1rm_lb": round(_set_score(top), 1),
+            "volume_lb": round(sum(_set_volume(s) for s in sets), 1),
             "sets": [{"load_lb": round(_set_load_lb(s), 1), "reps": s.get("reps"),
                       "duration_s": s.get("duration_s"), "distance_mi": s.get("distance_mi"),
                       "rpe": s.get("rpe"), "notes": s.get("notes")} for s in sets],

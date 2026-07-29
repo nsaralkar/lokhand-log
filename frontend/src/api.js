@@ -67,3 +67,8 @@ export const fmtSet = (s) => {
 export const scoreLabel = (metric) => (metric && metric !== 'reps' ? 'best' : 'e1RM')
 export const scoreFmt = (value, metric) =>
   metric === 'duration' ? fmtDuration(value) : metric === 'distance' ? `${value} mi` : value
+
+// A session's total work for one exercise: tonnage for lifts, total time held
+// or distance covered otherwise. Values format exactly like scores do.
+export const volumeLabel = (metric) =>
+  metric === 'duration' ? 'time' : metric === 'distance' ? 'distance' : 'volume'

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, Legend,
 } from 'recharts'
 import { get, WEIGHT_UNIT, MUSCLE_COLORS, exColor, fmtSet, scoreLabel, scoreFmt } from '../api'
+import ExerciseTrend from '../components/ExerciseTrend'
 
 const axis = { stroke: '#8a94a2', fontSize: 12 }
 const tip = { contentStyle: { background: '#262c36', border: '1px solid #3d4653', borderRadius: 8, color: '#edeff2' } }
@@ -15,9 +16,9 @@ export default function Trends({ menuBtn, workoutClock }) {
   const [prs, setPrs] = useState([])
   const [exercises, setExercises] = useState([])
   const [exId, setExId] = useState('')
-  const [prog, setProg] = useState([])
-  const [progSessions, setProgSessions] = useState([])
+  const [prog, setProg] = useState([])   // this exercise's sessions, chronological
   const selEx = exercises.find((e) => e.id === exId)
+  const recent = useMemo(() => [...prog].reverse(), [prog])   // the list reads newest first
 
   useEffect(() => {
     get('/analytics/volume').then((v) =>
@@ -35,11 +36,8 @@ export default function Trends({ menuBtn, workoutClock }) {
   }, [])
 
   useEffect(() => {
-    if (!exId) { setProg([]); setProgSessions([]); return }
-    get(`/analytics/exercises/${exId}/progression`).then((p) => {
-      setProg(p.sessions.map((s) => ({ date: s.date, e1rm: s.e1rm_lb })))
-      setProgSessions([...p.sessions].reverse())  // most recent first
-    })
+    if (!exId) { setProg([]); return }
+    get(`/analytics/exercises/${exId}/progression`).then((p) => setProg(p.sessions))
   }, [exId])
 
   return (
@@ -87,18 +85,8 @@ export default function Trends({ menuBtn, workoutClock }) {
           <option value="">choose exercise…</option>
           {exercises.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
-        {prog.length > 1 && (
-          <div style={{ height: 200, marginTop: 12 }}>
-            <ResponsiveContainer>
-              <LineChart data={prog}>
-                <XAxis dataKey="date" {...axis} /><YAxis {...axis} width={48} domain={['auto', 'auto']} />
-                <Tooltip {...tip} />
-                <Line type="monotone" dataKey="e1rm" stroke="#3b7dd8" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-        {progSessions.map((s) => (
+        <ExerciseTrend sessions={prog} metric={selEx?.metric} />
+        {recent.map((s) => (
           <div className="entry" key={s.session_id}>
             <div>
               <div className="main">{s.date}</div>
@@ -107,7 +95,7 @@ export default function Trends({ menuBtn, workoutClock }) {
             <div className="load">{scoreFmt(s.e1rm_lb, selEx?.metric)} <span className="pill">{scoreLabel(selEx?.metric)}</span></div>
           </div>
         ))}
-        {exId && !progSessions.length && <p className="muted">No history yet.</p>}
+        {exId && !prog.length && <p className="muted">No history yet.</p>}
       </div>
 
       <h2>PRs</h2>
