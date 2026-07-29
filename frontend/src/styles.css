@@ -117,13 +117,10 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 /* Home hub: one full-width launcher button per page */
 .home-links { display: flex; flex-direction: column; gap: 10px; }
 
-/* "Up next" card header with the expand/collapse toggle and the plan-edit pencil */
-.upnext-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.upnext-head .toggle { min-height: 32px; padding: 0 8px; font-size: 12px; background: none;
-  border: none; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
-.upnext-head-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* "Up next" card header: the expand/collapse toggle plus the "+N more" hint */
+.upnext-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 
-/* Drag handle: only shown while the plan is in edit mode. touch-action:none
+/* Drag handle: only shown while the plan is expanded. touch-action:none
    stops the browser from treating the drag as a page scroll on mobile. */
 .plan-handle { flex: 0 0 auto; width: 20px; text-align: center; color: var(--muted);
   font-size: 16px; line-height: 1; touch-action: none; cursor: grab; }
@@ -141,7 +138,6 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .section-toggle .chev { display: inline-block; width: 16px; text-align: center;
   font-size: 15px; line-height: 1; color: var(--ink); transition: transform 0.15s ease; }
 .section-toggle .chev.open { transform: rotate(90deg); }
-.section-toggle:disabled { opacity: 1; }
 /* "+N more" hint beside a collapsed Plan header */
 .plan-more { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
 /* Plan-row right side: round meta + remove button */

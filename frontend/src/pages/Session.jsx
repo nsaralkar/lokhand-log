@@ -36,7 +36,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [completedCollapsed, setCompletedCollapsed] = useState(true) // hide the logged-set rows
   const [pickerOpen, setPickerOpen] = useState(false) // main exercise-picker modal
   const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned (opens the picker modal)
-  const [planEditing, setPlanEditing] = useState(false) // Plan header pencil: reveals row edit/drag affordances
   const [dragIdx, setDragIdx] = useState(null)     // plan row index currently being dragged
   const [sessionNotes, setSessionNotes] = useState('') // freeform notes for the session
   const [notesOpen, setNotesOpen] = useState(false)    // session-notes box expanded
@@ -507,24 +506,16 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
 
       {upcoming.length > 0 && (
         <div className="card">
+          {/* Expanding the plan *is* the edit mode — the rows' drag handles and
+              per-row buttons ride along with it, so there's no separate toggle. */}
           <div className="upnext-head">
-            <div className="upnext-head-left">
-              <button className="section-toggle" aria-expanded={!planCollapsed}
-                disabled={upcoming.length < 2}
-                onClick={() => { setPlanCollapsed((c) => !c); setSwapIdx(null) }}>
-                <span className={`chev ${planCollapsed ? '' : 'open'}`}
-                  style={{ visibility: upcoming.length > 1 ? 'visible' : 'hidden' }}>▸</span> Plan
-              </button>
-              {upcoming.length > 1 && planCollapsed && (
-                <span className="muted plan-more">+{upcoming.length - 1} more</span>
-              )}
-            </div>
-            <button className="plan-x" aria-label={planEditing ? 'Done editing plan' : 'Edit plan'}
-              onClick={() => {
-                setSwapIdx(null)
-                if (!planEditing) setPlanCollapsed(false)
-                setPlanEditing((v) => !v)
-              }}>{planEditing ? '✓' : '✎'}</button>
+            <button className="section-toggle" aria-expanded={!planCollapsed}
+              onClick={() => { setPlanCollapsed((c) => !c); setSwapIdx(null) }}>
+              <span className={`chev ${planCollapsed ? '' : 'open'}`}>▸</span> Plan
+            </button>
+            {upcoming.length > 1 && planCollapsed && (
+              <span className="muted plan-more">+{upcoming.length - 1} more</span>
+            )}
           </div>
           {shownUpcoming.map((p, i) => {
             const idx = session.planIdx + i
@@ -532,7 +523,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
               <div className={`plan-row ${i === 0 ? 'current' : ''} ${dragIdx === idx ? 'dragging' : ''}`}
                 key={`up-${idx}`} ref={(el) => (rowRefs.current[idx] = el)}>
                 <div className="plan-main">
-                  {planEditing && (
+                  {!planCollapsed && (
                     <span className="plan-handle" aria-label="Drag to reorder"
                       onPointerDown={(e) => startRowDrag(e, idx)}>⠿</span>
                   )}
@@ -543,7 +534,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
                   <span className="muted">
                     {p.block ? `${p.block} · ` : ''}round {p.round}
                   </span>
-                  {planEditing && (
+                  {!planCollapsed && (
                     <>
                       <button className="plan-x" aria-label="Swap exercise"
                         onClick={() => setSwapIdx(idx)}>✎</button>
@@ -555,7 +546,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
               </div>
             )
           })}
-          {planEditing && <button className="plan-add" onClick={addPlanRow}>＋ add exercise</button>}
+          {!planCollapsed && <button className="plan-add" onClick={addPlanRow}>＋ add exercise</button>}
         </div>
       )}
 
