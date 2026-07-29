@@ -382,7 +382,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
 
   return (
     <>
-      <div className="pagehead">{menuBtn}<h1>Workout</h1></div>
+      <div className="pagehead">{menuBtn}<h1>Workout</h1>{workoutClock}</div>
       <div className="card">
         <div className="subtabs">
           <button className={exTab === 'exercise' ? 'on' : ''} onClick={() => setExTab('exercise')}>Exercise</button>
