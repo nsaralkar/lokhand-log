@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, Tooltip, Legend,
 } from 'recharts'
 import { get, WEIGHT_UNIT, MUSCLE_COLORS, exColor, fmtSet, scoreLabel, scoreFmt } from '../api'
+import ExercisePicker from '../components/ExercisePicker'
 import ExerciseTrend from '../components/ExerciseTrend'
 
 const axis = { stroke: '#8a94a2', fontSize: 12 }
@@ -16,6 +17,7 @@ export default function Trends({ menuBtn, workoutClock }) {
   const [prs, setPrs] = useState([])
   const [exercises, setExercises] = useState([])
   const [exId, setExId] = useState('')
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [prog, setProg] = useState([])   // this exercise's sessions, chronological
   const selEx = exercises.find((e) => e.id === exId)
   const recent = useMemo(() => [...prog].reverse(), [prog])   // the list reads newest first
@@ -81,10 +83,14 @@ export default function Trends({ menuBtn, workoutClock }) {
 
       <h2>Exercise progression</h2>
       <div className="card">
-        <select value={exId} onChange={(e) => setExId(e.target.value)}>
-          <option value="">choose exercise…</option>
-          {exercises.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-        </select>
+        {/* Same picker the workout tab uses: a searchable modal list, because
+            a native <select> is unusable on Android Chrome (and unstyleable). */}
+        <div className="ex-picker">
+          <button className="expicker-trigger" onClick={() => setPickerOpen(true)}>
+            {selEx ? <><span className="exdot" style={{ background: exColor(selEx.primary) }} />{selEx.name}</>
+                   : <span className="muted">choose exercise…</span>}
+          </button>
+        </div>
         <ExerciseTrend sessions={prog} metric={selEx?.metric} />
         {recent.map((s) => (
           <div className="entry" key={s.session_id}>
@@ -97,6 +103,10 @@ export default function Trends({ menuBtn, workoutClock }) {
         ))}
         {exId && !prog.length && <p className="muted">No history yet.</p>}
       </div>
+
+      <ExercisePicker open={pickerOpen} exercises={exercises} value={selEx?.name || ''}
+        onSelect={(name) => { setExId(exercises.find((e) => e.name === name)?.id || ''); setPickerOpen(false) }}
+        onClose={() => setPickerOpen(false)} />
 
       <h2>PRs</h2>
       <div className="card">
