@@ -131,6 +131,23 @@ def test_legacy_added_weight_folds_into_weight_on_edit(client):
     assert fixed["weight_lb"] == 25 and "added_weight_lb" not in fixed
 
 
+def test_edit_set_can_change_exercise_and_metric(client):
+    """A logged set is fully editable: re-point it at another exercise, and swap
+    which metric field it carries, in one patch."""
+    sid = client.post("/api/sessions/start", json={}).json()["session_id"]
+    eid = client.post("/api/sets", json={
+        "session_id": sid, "exercise_id": "goblet_squat_db",
+        "weight_lb": 50, "reps": 10}).json()["id"]
+    plank = client.post("/api/exercises", json={
+        "name": "Wall Sit", "primary": "quads", "metric": "duration"}).json()
+
+    fixed = client.patch(f"/api/entries/{eid}", json={
+        "exercise_id": plank["id"], "reps": None, "distance_mi": None,
+        "duration_s": 60, "weight_lb": None, "rpe": 7}).json()
+    assert fixed["exercise_id"] == plank["id"] and fixed["duration_s"] == 60
+    assert "reps" not in fixed and "weight_lb" not in fixed and fixed["rpe"] == 7
+
+
 def test_add_exercise_appends_without_touching_existing_bytes(client):
     """A hand-edited exercises.yaml (comments, blank lines) must survive a new
     exercise being added: only new bytes are appended, nothing is reformatted."""

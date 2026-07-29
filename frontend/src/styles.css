@@ -246,6 +246,24 @@ nav.drawer button.on { color: var(--accent); background: var(--surface-2); }
 /* Completed sets read as done, not live — grey rather than full-ink white. */
 .completed .entry .main, .completed .entry .load { color: var(--muted); }
 
+/* Editing a completed set: the row becomes a stacked editor — exercise picker,
+   then load/quantity/RPE side by side, then the actions. Everything about the
+   set is changeable, and it all fits 360px without a horizontal squeeze. */
+.setedit { display: flex; flex-direction: column; gap: 8px; padding: 8px 0;
+  border-bottom: 1px solid var(--line); }
+.setedit:last-child { border-bottom: none; }
+.setedit .expicker-trigger { min-height: 44px; padding: 8px 10px; font-size: 15px; }
+.setedit-fields { display: flex; gap: 6px; }
+.setedit-field { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 4px;
+  margin: 0; padding: 0 8px; text-transform: none; letter-spacing: normal;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); }
+.setedit-field input { flex: 1; min-width: 0; min-height: 44px; padding: 0;
+  background: none; border: none; }
+.setedit-field input:focus { outline: none; }
+.setedit-field:focus-within { border-color: var(--accent); }
+.setedit-field .unit { flex: 0 0 auto; color: var(--muted); font-size: 12px; }
+.setedit .row button { min-height: 44px; padding: 0 10px; }
+
 /* Exercise notes (Info subtab): form cues from the library */
 .exnotes { white-space: pre-wrap; line-height: 1.5; font-size: 15px; margin: 6px 0 0; }
 .entry .meta { color: var(--muted); font-size: 13px; }

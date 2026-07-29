@@ -28,7 +28,8 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [exTab, setExTab] = useState('exercise') // 'exercise' | 'history' | 'info'
   const [logged, setLogged] = useState([])
   const [editId, setEditId] = useState(null)   // logged set being edited
-  const [editVal, setEditVal] = useState({ weight: '', kind: 'reps', qty: '' })
+  const [editVal, setEditVal] = useState({ exercise_id: '', weight: '', kind: 'reps', qty: '', rpe: '' })
+  const [editPick, setEditPick] = useState(false)  // exercise picker for the set being edited
   const [adding, setAdding] = useState(false)  // add-exercise form open
   const [confirmId, setConfirmId] = useState(null) // set pending delete
   const [confirmFinish, setConfirmFinish] = useState(false) // finish-workout pending confirmation
@@ -318,12 +319,30 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   function startEdit(l) {
     const kind = l.duration_s != null ? 'duration_s' : l.distance_mi != null ? 'distance_mi' : 'reps'
     setEditId(l.id)
-    setEditVal({ weight: l.weight_lb ?? l.added_weight_lb ?? '', kind, qty: l[kind] })
+    setEditVal({ exercise_id: l.exercise_id, kind,
+      weight: l.weight_lb ?? l.added_weight_lb ?? '', qty: l[kind] ?? '', rpe: l.rpe ?? '' })
+  }
+
+  // Re-point a logged set at a different exercise. If the new one is tracked by
+  // another metric the quantity field switches with it, and the old number is
+  // dropped rather than silently reinterpreted (45 seconds isn't 45 reps).
+  function editExercise(name) {
+    const ex = exercises.find((e) => e.name === name)
+    setEditPick(false)
+    if (!ex) return
+    const kind = kindOf(ex.metric)
+    setEditVal((v) => ({ ...v, exercise_id: ex.id, kind, qty: v.kind === kind ? v.qty : '' }))
   }
 
   async function saveEdit(l) {
-    const p = { [editVal.kind]: Number(editVal.qty) }
-    p.weight_lb = editVal.weight === '' ? null : Number(editVal.weight)
+    const num = (v) => (v === '' || v == null ? null : Number(v))
+    // The patch merges into the stored entry, so every field the set no longer
+    // uses has to be nulled explicitly — omitting it would leave the old value.
+    const p = {
+      exercise_id: editVal.exercise_id, weight_lb: num(editVal.weight), rpe: num(editVal.rpe),
+      reps: null, duration_s: null, distance_mi: null, added_weight_lb: null,
+      [editVal.kind]: num(editVal.qty),
+    }
     try {
       await patch(`/entries/${l.id}`, p)
       setEditId(null)
@@ -558,31 +577,51 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
             <span className={`chev ${completedCollapsed ? '' : 'open'}`}>▸</span>
             Completed <span className="muted">· {logged.length} set{logged.length === 1 ? '' : 's'}</span>
           </button>
-          {!completedCollapsed && logged.map((l) => (
+          {/* A logged set is fully editable — exercise included. The editor takes
+              over the row so all four fields fit a 360px screen in one column. */}
+          {!completedCollapsed && logged.map((l) => editId === l.id ? (
+            <div className="setedit" key={l.id}>
+              <button className="expicker-trigger" onClick={() => setEditPick(true)}>
+                <span className="exdot" style={{ background: colorOf(editVal.exercise_id) }} />
+                {nameOf(editVal.exercise_id)}
+              </button>
+              <div className="setedit-fields">
+                <label className="setedit-field">
+                  <input inputMode="decimal" value={editVal.weight} aria-label={WEIGHT_UNIT}
+                    onChange={(e) => setEditVal({ ...editVal, weight: e.target.value })} />
+                  <span className="unit">{WEIGHT_UNIT}</span>
+                </label>
+                <label className="setedit-field">
+                  <input inputMode={editVal.kind === 'distance_mi' ? 'decimal' : 'numeric'}
+                    value={editVal.qty} aria-label={unitOf(editVal.kind)}
+                    onChange={(e) => setEditVal({ ...editVal, qty: e.target.value })} />
+                  <span className="unit">{unitOf(editVal.kind)}</span>
+                </label>
+                <label className="setedit-field">
+                  <input inputMode="decimal" value={editVal.rpe} aria-label="rpe"
+                    onChange={(e) => setEditVal({ ...editVal, rpe: e.target.value })} />
+                  <span className="unit">rpe</span>
+                </label>
+              </div>
+              <div className="row">
+                <button className="primary" onClick={() => saveEdit(l)}>Save</button>
+                <button className="ghost" onClick={() => setEditId(null)}>Cancel</button>
+                <button className="ghost danger" onClick={() => setConfirmId(l.id)}>Delete</button>
+              </div>
+            </div>
+          ) : (
             <div className="entry" key={l.id}>
               <div className="main exname">
                 <span className="exdot" style={{ background: colorOf(l.exercise_id) }} />
                 {nameOf(l.exercise_id)}
               </div>
-              {editId === l.id ? (
-                <div className="row" style={{ maxWidth: 280 }}>
-                  <input inputMode="decimal" value={editVal.weight} placeholder={WEIGHT_UNIT}
-                    onChange={(e) => setEditVal({ ...editVal, weight: e.target.value })} />
-                  <input inputMode={editVal.kind === 'distance_mi' ? 'decimal' : 'numeric'} value={editVal.qty}
-                    onChange={(e) => setEditVal({ ...editVal, qty: e.target.value })} />
-                  <button className="primary" onClick={() => saveEdit(l)}>✓</button>
-                  <button className="ghost danger" style={{ minHeight: 40, padding: '0 10px' }}
-                    onClick={() => setConfirmId(l.id)}>✕</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="load">
+                  {fmtSet(l)}
                 </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div className="load">
-                    {fmtSet(l)}
-                  </div>
-                  <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
-                    onClick={() => startEdit(l)}>✎</button>
-                </div>
-              )}
+                <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
+                  onClick={() => startEdit(l)}>✎</button>
+              </div>
             </div>
           ))}
         </div>
@@ -611,6 +650,9 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         value={swapIdx != null ? nameOf(plan[swapIdx]?.exercise_id) : ''}
         onSelect={(name) => applySwap(swapIdx, name)}
         onClose={() => setSwapIdx(null)} />
+
+      <ExercisePicker open={editPick} exercises={exercises} value={nameOf(editVal.exercise_id)}
+        onSelect={editExercise} onClose={() => setEditPick(false)} />
 
       <Confirm open={confirmId != null}
         message="Delete this set? git history keeps the audit trail."
