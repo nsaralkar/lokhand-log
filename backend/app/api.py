@@ -10,10 +10,9 @@ from pydantic import BaseModel
 
 from . import analytics, config, storage
 from .auth import current_user, make_session_token, verify_login
-from .library import (_slugify, add_exercise, exercises_yaml_text, expand_day,
-                      find_day, load_exercises, load_routines,
-                      routine_yaml_text, save_exercises_yaml_text,
-                      save_routine_yaml_text)
+from .library import (add_exercise, add_routine_day, exercise_entry_yaml,
+                      expand_day, find_day, load_exercises, load_routines,
+                      update_exercise, update_routine_day)
 from .models import (CardioEntry, Exercise, MetricEntry, SessionEnd,
                      SessionStart, SetEntry)
 
@@ -71,18 +70,36 @@ class YamlBody(BaseModel):
     text: str
 
 
-@router.get("/exercises/raw")
-def exercises_raw(user=Depends(current_user)):
-    return {"text": exercises_yaml_text()}
-
-
-@router.put("/exercises/raw")
-def save_exercises_raw(body: YamlBody, user=Depends(current_user)):
+@router.post("/exercises/raw")
+def create_exercise_raw(body: YamlBody, user=Depends(current_user)):
+    """Add Exercise, hand-typed: the id is derived from `name` (like the
+    structured POST /exercises), the rest of the entry is whatever YAML the
+    user typed."""
     try:
-        save_exercises_yaml_text(body.text)
+        attrs = yaml.safe_load(body.text) or {}
+        if not isinstance(attrs, dict):
+            raise ValueError("an exercise entry must be a mapping of attributes")
+        ex = Exercise.model_validate({**attrs, "id": ""})
+        return add_exercise(ex).model_dump()
     except (ValueError, yaml.YAMLError) as e:
         raise HTTPException(400, str(e))
-    return {"text": exercises_yaml_text()}
+
+
+@router.get("/exercises/{id}/raw")
+def exercise_raw(id: str, user=Depends(current_user)):
+    text = exercise_entry_yaml(id)
+    if text is None:
+        raise HTTPException(404, "exercise not found")
+    return {"yaml": text}
+
+
+@router.put("/exercises/{id}/raw")
+def save_exercise_raw(id: str, body: YamlBody, user=Depends(current_user)):
+    try:
+        update_exercise(id, body.text)
+    except (ValueError, yaml.YAMLError) as e:
+        raise HTTPException(400, str(e))
+    return {"yaml": exercise_entry_yaml(id)}
 
 
 # ---------- sessions & logging ----------
@@ -229,46 +246,27 @@ def routines(user=Depends(current_user)):
     return load_routines()
 
 
-class NewRoutineBody(BaseModel):
-    slug: Optional[str] = None   # blank -> derived from name/text
-    text: str
-
-
-@router.post("/routines/raw")
-def create_routine(body: NewRoutineBody, user=Depends(current_user)):
-    slug = _slugify(body.slug) if body.slug else None
-    if not slug:
-        try:
-            name = (yaml.safe_load(body.text) or {}).get("name")
-        except yaml.YAMLError:
-            name = None
-        slug = _slugify(name) if name else _slugify("routine")
-    existing = load_routines()
-    base, n = slug, 2
-    while slug in existing:
-        slug, n = f"{base}_{n}", n + 1
+@router.post("/routines/{slug}/days")
+def create_routine_day(slug: str, body: YamlBody, user=Depends(current_user)):
+    """Add Routine: append a hand-typed day to an existing routine file."""
     try:
-        save_routine_yaml_text(slug, body.text, create=True)
+        day = add_routine_day(slug, body.text)
     except (ValueError, yaml.YAMLError) as e:
         raise HTTPException(400, str(e))
-    return {"slug": slug, "text": routine_yaml_text(slug)}
+    return {"name": day.get("name"),
+            "yaml": yaml.safe_dump(day, sort_keys=False, allow_unicode=True)}
 
 
-@router.get("/routines/{slug}/raw")
-def routine_raw(slug: str, user=Depends(current_user)):
-    text = routine_yaml_text(slug)
-    if text is None:
-        raise HTTPException(404, "routine not found")
-    return {"text": text}
-
-
-@router.put("/routines/{slug}/raw")
-def save_routine_raw(slug: str, body: YamlBody, user=Depends(current_user)):
+@router.put("/routines/{slug}/days/{idx}")
+def save_routine_day(slug: str, idx: int, body: YamlBody, user=Depends(current_user)):
+    """Edit one day, addressed by its position in the file (unambiguous even
+    for unnamed days, unlike matching on `name`)."""
     try:
-        save_routine_yaml_text(slug, body.text)
+        day = update_routine_day(slug, idx, body.text)
     except (ValueError, yaml.YAMLError) as e:
         raise HTTPException(400, str(e))
-    return {"text": routine_yaml_text(slug)}
+    return {"name": day.get("name"),
+            "yaml": yaml.safe_dump(day, sort_keys=False, allow_unicode=True)}
 
 
 @router.get("/routines/{slug}/preview")

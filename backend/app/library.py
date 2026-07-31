@@ -32,26 +32,35 @@ def _slugify(name: str) -> str:
     return slug or "exercise"
 
 
-def exercises_yaml_text() -> str:
-    """Raw file contents for the Library page's editor."""
-    path = config.exercises_file()
-    return path.read_text() if path.exists() else ""
+def exercise_entry_yaml(id_: str) -> str | None:
+    """YAML for one exercise's attributes (no id key -- the id is fixed by the
+    button/URL that got you here), for the Library page's preview/edit dialog.
+    None if the id doesn't exist."""
+    ex = load_exercises().get(id_)
+    if ex is None:
+        return None
+    return yaml.safe_dump(ex.model_dump(exclude_none=True, exclude={"id"}),
+                          sort_keys=False, allow_unicode=True)
 
 
-def save_exercises_yaml_text(text: str) -> None:
-    """Validate a hand-edited exercises.yaml (parses, every entry passes the
-    Exercise schema) and overwrite the file verbatim -- the editor's own text
-    is what lands on disk, so comments/formatting the user kept are preserved."""
-    raw = yaml.safe_load(text) or {}
-    if not isinstance(raw, dict):
-        raise ValueError("exercises.yaml must be a mapping of id -> attributes")
-    for id_, item in raw.items():
-        Exercise.model_validate({**(item or {}), "id": id_})
+def update_exercise(id_: str, text: str) -> Exercise:
+    """Validate a hand-edited attributes block and overwrite that one entry.
+    Unlike add_exercise's append, an edit can touch any existing key, so this
+    round-trips the whole file through yaml.safe_dump -- comments are
+    preserved on add (append-only) but not on edit (full rewrite)."""
     path = config.exercises_file()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text)
+    raw = yaml.safe_load(path.read_text()) if path.exists() else {}
+    if not isinstance(raw, dict) or id_ not in raw:
+        raise ValueError(f"exercise not found: {id_}")
+    attrs = yaml.safe_load(text) or {}
+    if not isinstance(attrs, dict):
+        raise ValueError("an exercise entry must be a mapping of attributes")
+    ex = Exercise.model_validate({**attrs, "id": id_})
+    raw[id_] = ex.model_dump(exclude_none=True, exclude={"id"})
+    path.write_text(yaml.safe_dump(raw, sort_keys=False, allow_unicode=True))
     from .storage import git_commit
-    git_commit("library: edit exercises.yaml")
+    git_commit(f"library: edit exercise {id_}")
+    return ex
 
 
 def add_exercise(ex: Exercise) -> Exercise:
@@ -99,28 +108,50 @@ def load_routines() -> dict[str, dict]:
     return out
 
 
-def routine_yaml_text(slug: str) -> str | None:
-    """Raw file contents for one routine, or None if the slug doesn't exist."""
-    path = config.routines_dir() / f"{slug}.yaml"
-    return path.read_text() if path.exists() else None
+def _routine_path(slug: str) -> Path:
+    return config.routines_dir() / f"{slug}.yaml"
 
 
-def save_routine_yaml_text(slug: str, text: str, *, create: bool = False) -> None:
-    """Validate a hand-edited routine file (must parse to a mapping) and write
-    it verbatim, same rationale as save_exercises_yaml_text. `create=True`
-    refuses to overwrite an existing slug; otherwise the slug must exist."""
-    raw = yaml.safe_load(text) or {}
-    if not isinstance(raw, dict):
-        raise ValueError("a routine file must be a mapping (name, days, ...)")
-    path = config.routines_dir() / f"{slug}.yaml"
-    if create and path.exists():
-        raise ValueError(f"routine already exists: {slug}")
-    if not create and not path.exists():
+def _parse_day(text: str) -> dict:
+    day = yaml.safe_load(text) or {}
+    if not isinstance(day, dict):
+        raise ValueError("a routine day must be a mapping (name, blocks, ...)")
+    return day
+
+
+def add_routine_day(slug: str, text: str) -> dict:
+    """Append a new day (hand-typed YAML) to an existing routine file. Whole-
+    file round-trip through yaml.safe_dump, like update_exercise -- comments
+    aren't preserved on this path."""
+    path = _routine_path(slug)
+    if not path.exists():
         raise ValueError(f"routine not found: {slug}")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text)
+    routine = yaml.safe_load(path.read_text()) or {}
+    day = _parse_day(text)
+    routine.setdefault("days", []).append(day)
+    path.write_text(yaml.safe_dump(routine, sort_keys=False, allow_unicode=True))
     from .storage import git_commit
-    git_commit(f"library: {'add' if create else 'edit'} routine {slug}")
+    git_commit(f"library: add day to routine {slug}")
+    return day
+
+
+def update_routine_day(slug: str, idx: int, text: str) -> dict:
+    """Replace one day (by its position in the file) with a hand-edited
+    version -- the position is what the frontend already has from the list
+    it rendered, so it's unambiguous even for unnamed days."""
+    path = _routine_path(slug)
+    if not path.exists():
+        raise ValueError(f"routine not found: {slug}")
+    routine = yaml.safe_load(path.read_text()) or {}
+    days = routine.get("days") or []
+    if not (0 <= idx < len(days)):
+        raise ValueError(f"day index out of range: {idx}")
+    days[idx] = _parse_day(text)
+    routine["days"] = days
+    path.write_text(yaml.safe_dump(routine, sort_keys=False, allow_unicode=True))
+    from .storage import git_commit
+    git_commit(f"library: edit day in routine {slug}")
+    return days[idx]
 
 
 def find_day(routine: dict, day_name: str | None) -> dict | None:
