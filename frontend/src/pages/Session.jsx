@@ -364,7 +364,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     const routineList = Object.entries(routines)
     return (
       <>
-        <div className="pagehead">{menuBtn}<h1>Workout</h1>{workoutClock}</div>
+        <div className="pagehead">{menuBtn}<h1>Session</h1>{workoutClock}</div>
         <div className="card">
           <button className="big primary" onClick={() => start()}>Start empty workout</button>
         </div>
@@ -382,7 +382,9 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
           </div>
         ))}
         {!routineList.length && (
-          <p className="muted">No routines yet. Drop a routine YAML in your data repo's <code>shared/routines/</code>.</p>
+          <p className="muted">
+            No routines yet. Add one on the <button className="linkdate" onClick={() => navigate('routines')}>Routines</button> page.
+          </p>
         )}
         <RoutinePreview preview={preview}
           onStart={() => { const p = preview; setPreview(null); start(p.slug, p.day) }}
@@ -404,7 +406,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
 
   return (
     <>
-      <div className="pagehead">{menuBtn}<h1>Workout</h1>{workoutClock}</div>
+      <div className="pagehead">{menuBtn}<h1>Session</h1>{workoutClock}</div>
       <div className="card">
         <div className="subtabs">
           <button className={exTab === 'exercise' ? 'on' : ''} onClick={() => setExTab('exercise')}>Exercise</button>

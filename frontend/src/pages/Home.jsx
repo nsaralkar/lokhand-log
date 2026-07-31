@@ -1,7 +1,9 @@
 // Landing hub: the app title plus a button per page. Kept deliberately spare —
 // it's a launcher, not a dashboard.
 const LINKS = [
-  ['workout', 'Workout'],
+  ['session', 'Session'],
+  ['routines', 'Routines'],
+  ['library', 'Library'],
   ['history', 'History'],
   ['stats', 'Stats'],
   ['body', 'Body'],

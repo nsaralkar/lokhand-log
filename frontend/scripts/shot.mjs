@@ -65,9 +65,9 @@ if (await page.getByText('Log in').count()) {
   await pause(800)
 }
 
-// 2. Home hub, then into the Workout page.
+// 2. Home hub, then into the Session page.
 await shot('02-home')
-await page.getByRole('button', { name: 'Workout', exact: true }).click()
+await page.getByRole('button', { name: 'Session', exact: true }).click()
 await pause(400)
 await shot('02b-start')
 

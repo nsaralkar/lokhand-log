@@ -47,6 +47,14 @@ input, select, textarea {
   border-radius: var(--radius); padding: 10px 12px; width: 100%;
 }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+
+/* Raw-YAML editors (Library, Routines) — monospace, tall, no autocapitalize/
+   spellcheck squiggles on structured text. */
+.yaml-editor {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px; line-height: 1.5; min-height: 55vh; resize: vertical;
+  white-space: pre; margin-bottom: 8px;
+}
 label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 0.05em; }
 
 /* Rest timer — occupies exactly the Log-set button's footprint while resting:

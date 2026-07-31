@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { get, RESUME_KEY, fmtElapsed } from './api'
 import Login from './pages/Login'
 import Home from './pages/Home'
+import Library from './pages/Library'
+import Routines from './pages/Routines'
 import Session from './pages/Session'
 import History from './pages/History'
 import Stats from './pages/Stats'
 import Metrics from './pages/Metrics'
 
-const TABS = { home: Home, workout: Session, history: History, stats: Stats, body: Metrics }
+const TABS = { home: Home, library: Library, routines: Routines, session: Session, history: History, stats: Stats, body: Metrics }
 
 export default function App() {
   const [user, setUser] = useState(undefined) // undefined = checking
