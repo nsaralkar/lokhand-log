@@ -9,6 +9,6 @@ uv.lock
 package-lock.json
 .env
 
-scratch.md
-updates.md
+
+.updates/
 

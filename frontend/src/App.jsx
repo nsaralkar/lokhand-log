@@ -9,7 +9,7 @@ import History from './pages/History'
 import Stats from './pages/Stats'
 import Metrics from './pages/Metrics'
 
-const TABS = { home: Home, library: Library, routines: Routines, session: Session, history: History, stats: Stats, body: Metrics }
+const TABS = { home: Home, session: Session, routines: Routines, library: Library, history: History, stats: Stats, body: Metrics }
 
 export default function App() {
   const [user, setUser] = useState(undefined) // undefined = checking

@@ -1,101 +1,93 @@
 import { useEffect, useState } from 'react'
-import { get, post, put } from '../api'
+import { get, post, put, RESUME_KEY } from '../api'
+import YamlItemDialog from '../components/YamlItemDialog'
 
-const BLANK = `name: New Routine
-days:
-  - name: Day 1
-    blocks:
-      - exercises: [exercise_id]
-        rounds: 3
+const NEW_DAY_TEMPLATE = `name: New Day
+blocks:
+  - exercises: [exercise_id]
+    rounds: 3
 `
 
-// Raw-YAML editor for shared/routines/*.yaml, one file per routine. Same idea
-// as Library: view/add/edit are all just a validated textarea, no day/block UI.
-export default function Routines({ menuBtn, workoutClock }) {
+// Each routine YAML file (a program with a name + days) is one collapsible
+// section; each day inside it is a tappable "routine" that opens a
+// preview/edit/start dialog. Files themselves aren't created here -- add a
+// day to an existing file, or drop a new YAML into shared/routines/ by hand.
+export default function Routines({ navigate, menuBtn, workoutClock }) {
   const [routines, setRoutines] = useState({})
-  const [slug, setSlug] = useState(null)      // routine being edited, or null for the list
-  const [creating, setCreating] = useState(false)
-  const [newSlug, setNewSlug] = useState('')
-  const [text, setText] = useState('')
-  const [saved, setSaved] = useState('')
+  const [expanded, setExpanded] = useState(new Set())
+  const [initialized, setInitialized] = useState(false)
+  const [dialog, setDialog] = useState(null) // {slug, idx, day, title, yaml, isNew}
   const [err, setErr] = useState('')
-  const [busy, setBusy] = useState(false)
 
-  const load = () => get('/routines').then(setRoutines)
-  useEffect(() => { load() }, [])
+  const load = () => get('/routines').then((r) => {
+    setRoutines(r)
+    if (!initialized) { setExpanded(new Set(Object.keys(r))); setInitialized(true) }
+  })
+  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function open(s) {
-    setErr(''); setCreating(false)
-    const r = await get(`/routines/${encodeURIComponent(s)}/raw`)
-    setSlug(s); setText(r.text); setSaved(r.text)
+  function toggle(slug) {
+    setExpanded((s) => {
+      const next = new Set(s)
+      next.has(slug) ? next.delete(slug) : next.add(slug)
+      return next
+    })
   }
 
-  function startCreate() {
-    setErr(''); setSlug(null); setCreating(true)
-    setNewSlug(''); setText(BLANK); setSaved(null)
-  }
-
-  async function save() {
-    setBusy(true); setErr('')
+  async function openDay(slug, idx, day) {
+    setErr('')
     try {
-      if (creating) {
-        const r = await post('/routines/raw', { slug: newSlug.trim() || undefined, text })
-        await load()
-        setCreating(false); setSlug(r.slug); setText(r.text); setSaved(r.text)
-      } else {
-        const r = await put(`/routines/${encodeURIComponent(slug)}/raw`, { text })
-        setText(r.text); setSaved(r.text)
-        await load()
-      }
+      const qs = day.name ? `?day=${encodeURIComponent(day.name)}` : ''
+      const r = await get(`/routines/${encodeURIComponent(slug)}/preview${qs}`)
+      setDialog({ slug, idx, day, title: r.name, yaml: r.yaml, isNew: false })
     } catch (e) { setErr(e.message) }
-    setBusy(false)
   }
 
-  function back() {
-    setSlug(null); setCreating(false); setErr('')
+  function openNewDay(slug) {
+    setErr('')
+    setDialog({ slug, idx: null, day: null, title: 'New routine', yaml: NEW_DAY_TEMPLATE, isNew: true })
   }
 
-  const dirty = creating || text !== saved
+  async function saveDay(text) {
+    if (dialog.isNew) await post(`/routines/${encodeURIComponent(dialog.slug)}/days`, { text })
+    else await put(`/routines/${encodeURIComponent(dialog.slug)}/days/${dialog.idx}`, { text })
+    await load()
+  }
 
-  if (slug != null || creating) {
-    return (
-      <>
-        <div className="pagehead">{menuBtn}<h1>Routines</h1>{workoutClock}</div>
-        <button className="ghost" onClick={back}>‹ All routines</button>
-        {creating && (
-          <>
-            <label>Filename slug (optional — derived from the routine's name if left blank)</label>
-            <input value={newSlug} onChange={(e) => setNewSlug(e.target.value)}
-              placeholder="push_day" />
-          </>
-        )}
-        {!creating && <h2>{routines[slug]?.name || slug}</h2>}
-        {err && <p className="error">{err}</p>}
-        <textarea className="yaml-editor no-autoselect" spellCheck={false}
-          autoCapitalize="none" autoCorrect="off"
-          value={text} onChange={(e) => setText(e.target.value)} />
-        <button className="big primary" disabled={!dirty || busy} onClick={save}>
-          {busy ? 'Saving…' : creating ? 'Create routine' : 'Save'}
-        </button>
-      </>
-    )
+  async function startDay() {
+    const r = await post('/sessions/start', { routine: dialog.slug, day: dialog.day?.name })
+    localStorage.setItem(RESUME_KEY, JSON.stringify({
+      session: { session_id: r.session_id, plan: r.plan, planIdx: 0, startedAt: Date.now() } }))
+    navigate('session')
   }
 
   const routineList = Object.entries(routines)
   return (
     <>
       <div className="pagehead">{menuBtn}<h1>Routines</h1>{workoutClock}</div>
-      <div className="card">
-        <button className="big primary" onClick={startCreate}>+ New routine</button>
-      </div>
-      {routineList.map(([s, r]) => (
-        <div className="card" key={s}>
-          <button className="big" onClick={() => open(s)}>{r.name || s}</button>
+      {err && <p className="error">{err}</p>}
+      {routineList.map(([slug, r]) => (
+        <div className="card" key={slug}>
+          <button className="section-toggle" aria-expanded={expanded.has(slug)} onClick={() => toggle(slug)}>
+            <span className={`chev ${expanded.has(slug) ? 'open' : ''}`}>▸</span> {r.name || slug}
+          </button>
+          {expanded.has(slug) && (
+            <div style={{ marginTop: 10 }}>
+              {(r.days || []).map((d, i) => (
+                <button className="big" key={d.name || i} style={{ marginBottom: 8 }}
+                  onClick={() => openDay(slug, i, d)}>{d.name || `Day ${i + 1}`}</button>
+              ))}
+              <button className="big" onClick={() => openNewDay(slug)}>+ Add Routine</button>
+            </div>
+          )}
         </div>
       ))}
       {!routineList.length && (
-        <p className="muted">No routines yet. Add one above, or drop a routine YAML in your data repo's <code>shared/routines/</code>.</p>
+        <p className="muted">No routines yet. Drop a routine YAML in your data repo's <code>shared/routines/</code>.</p>
       )}
+
+      <YamlItemDialog open={dialog != null} title={dialog?.title} yaml={dialog?.yaml} isNew={dialog?.isNew}
+        onSave={saveDay} onStart={dialog && !dialog.isNew ? startDay : undefined}
+        onClose={() => setDialog(null)} />
     </>
   )
 }

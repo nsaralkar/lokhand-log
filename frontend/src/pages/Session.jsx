@@ -4,16 +4,10 @@ import { unlockAudio, beep } from '../audio'
 import Confirm from '../components/Confirm'
 import ExercisePicker from '../components/ExercisePicker'
 import ExerciseTrend from '../components/ExerciseTrend'
-import RoutinePreview from '../components/RoutinePreview'
-
-// Fixed taxonomy — mirrors backend config.MUSCLE_GROUPS (used by the add form).
-const MUSCLE_GROUPS = ['chest', 'back', 'shoulders', 'biceps', 'triceps',
-  'quads', 'hamstrings', 'glutes', 'calves', 'core', 'cardio']
 
 export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [exercises, setExercises] = useState([])
   const [exErr, setExErr] = useState('')
-  const [routines, setRoutines] = useState({})
   const [session, setSession] = useState(null) // {session_id, plan, planIdx}
   const [exText, setExText] = useState('')     // exercise picker text (name)
   const [weight, setWeight] = useState(null)   // pounds
@@ -28,7 +22,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [editId, setEditId] = useState(null)   // logged set being edited
   const [editVal, setEditVal] = useState({ exercise_id: '', weight: '', kind: 'reps', qty: '', rpe: '' })
   const [editPick, setEditPick] = useState(false)  // exercise picker for the set being edited
-  const [adding, setAdding] = useState(false)  // add-exercise form open
   const [confirmId, setConfirmId] = useState(null) // set pending delete
   const [confirmFinish, setConfirmFinish] = useState(false) // finish-workout pending confirmation
   const [planCollapsed, setPlanCollapsed] = useState(true) // hide the rows below the current one
@@ -39,7 +32,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [sessionNotes, setSessionNotes] = useState('') // freeform notes for the session
   const [notesOpen, setNotesOpen] = useState(false)    // session-notes box expanded
   const [err, setErr] = useState('')
-  const [preview, setPreview] = useState(null) // {slug, day, name, yaml} — routine-day look-before-you-start
   const wakeLock = useRef(null)
   const hydrated = useRef(false)
   const beeped = useRef(false)
@@ -52,7 +44,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
 
   useEffect(() => {
     loadExercises()
-    get('/routines').then(setRoutines)
   }, [])
 
   const nameOf = (id) => exercises.find((e) => e.id === id)?.name || id
@@ -184,38 +175,12 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     }
   }, [now, timer])
 
-  async function start(routine, day) {
-    const r = await post('/sessions/start', { routine, day })
+  async function start() {
+    const r = await post('/sessions/start', {})
     setSession({ session_id: r.session_id, plan: r.plan, planIdx: 0, startedAt: Date.now() })
     setLogged([]); setExTab('exercise'); setPlanCollapsed(true); setCompletedCollapsed(true); setSwapIdx(null)
     setTimer(null); setSetStartAt(Date.now())
-    if (!r.plan?.length) setExText('')
-  }
-
-  // Look-before-you-start: fetch the day's raw YAML instead of jumping straight
-  // into the session. Starting is a separate, explicit step from the modal.
-  // day may be undefined (unnamed day) — find_day then falls back to the
-  // routine's first day, same as start() always has.
-  async function openPreview(slug, day) {
-    const qs = day ? `?day=${encodeURIComponent(day)}` : ''
-    const r = await get(`/routines/${encodeURIComponent(slug)}/preview${qs}`)
-    setPreview({ slug, day, name: r.name, yaml: r.yaml })
-  }
-
-  async function addExercise(form) {
-    setErr('')
-    try {
-      const created = await post('/exercises', {
-        name: form.name.trim(),
-        primary: form.primary,
-        metric: form.metric,
-        equipment: form.equipment || undefined,
-        default_rest_s: Number(form.default_rest_s) || 120,
-      })
-      await loadExercises()
-      setExText(created.name)
-      setAdding(false)
-    } catch (e) { setErr(e.message) }
+    setExText('')
   }
 
   async function logSet() {
@@ -361,34 +326,12 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   }
 
   if (!session) {
-    const routineList = Object.entries(routines)
     return (
       <>
         <div className="pagehead">{menuBtn}<h1>Session</h1>{workoutClock}</div>
         <div className="card">
-          <button className="big primary" onClick={() => start()}>Start empty workout</button>
+          <button className="big primary" onClick={start}>Start empty workout</button>
         </div>
-        {routineList.map(([slug, r]) => (
-          <div key={slug}>
-            <h2>{r.name || slug}</h2>
-            <div className="card">
-              {(r.days || []).map((d, i) => (
-                <button className="big" key={d.name || i}
-                  style={{ marginBottom: i < r.days.length - 1 ? 8 : 0 }}
-                  onClick={() => openPreview(slug, d.name)}>{d.name || `Day ${i + 1}`}</button>
-              ))}
-              {!(r.days || []).length && <p className="muted">No days defined in this routine.</p>}
-            </div>
-          </div>
-        ))}
-        {!routineList.length && (
-          <p className="muted">
-            No routines yet. Add one on the <button className="linkdate" onClick={() => navigate('routines')}>Routines</button> page.
-          </p>
-        )}
-        <RoutinePreview preview={preview}
-          onStart={() => { const p = preview; setPreview(null); start(p.slug, p.day) }}
-          onClose={() => setPreview(null)} />
       </>
     )
   }
@@ -421,10 +364,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
               <button className="expicker-trigger" onClick={() => setPickerOpen(true)}>
                 {exText || <span className="muted">choose exercise…</span>}
               </button>
-              <button className="addex" aria-label={adding ? 'Cancel new exercise' : 'New exercise'}
-                onClick={() => { setErr(''); setAdding((v) => !v) }}>{adding ? '×' : '+'}</button>
             </div>
-            {adding && <AddExerciseForm onSubmit={addExercise} />}
 
             <div className="fields">
               {showWeight && (
@@ -649,42 +589,5 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         message="Finish this workout? You won't be able to log more sets to it."
         confirmLabel="Finish" onConfirm={endSession} onCancel={() => setConfirmFinish(false)} />
     </>
-  )
-}
-
-function AddExerciseForm({ onSubmit }) {
-  const [f, setF] = useState({
-    name: '', primary: 'chest', metric: 'reps', equipment: '', default_rest_s: 120 })
-  const set = (k, v) => setF((p) => ({ ...p, [k]: v }))
-  return (
-    <div className="card" style={{ background: 'var(--surface-2)', marginTop: 8 }}>
-      <label>Name</label>
-      <input value={f.name} onChange={(e) => set('name', e.target.value)}
-        placeholder="Chest Press, Incline, DB" />
-      <div className="row">
-        <div>
-          <label>Primary muscle</label>
-          <select value={f.primary} onChange={(e) => set('primary', e.target.value)}>
-            {MUSCLE_GROUPS.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-        </div>
-        <div>
-          <label>Rest (s)</label>
-          <input inputMode="numeric" value={f.default_rest_s}
-            onChange={(e) => set('default_rest_s', e.target.value)} />
-        </div>
-      </div>
-      <label>Tracked by</label>
-      <select value={f.metric} onChange={(e) => set('metric', e.target.value)}>
-        <option value="reps">Reps</option>
-        <option value="duration">Duration (e.g. planks, holds)</option>
-        <option value="distance">Distance (e.g. carries, runs)</option>
-      </select>
-      <label>Equipment (optional)</label>
-      <input value={f.equipment} onChange={(e) => set('equipment', e.target.value)}
-        placeholder="dumbbell / barbell / cable / machine" />
-      <button className="big primary" style={{ marginTop: 10 }}
-        disabled={!f.name.trim()} onClick={() => onSubmit(f)}>Add exercise</button>
-    </div>
   )
 }

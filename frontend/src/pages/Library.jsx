@@ -1,52 +1,57 @@
 import { useEffect, useState } from 'react'
-import { get, put } from '../api'
+import { get, post, put } from '../api'
+import YamlItemDialog from '../components/YamlItemDialog'
 
-// Raw-YAML editor for the shared exercise library. No form UI yet -- the file
-// is small and hand-edited already, so a validated textarea covers add/view/edit
-// in one shot (a new entry is just another block of YAML at the end).
+const NEW_EXERCISE_TEMPLATE = `name: New Exercise
+primary: chest
+`
+
+// Same idea as Routines: every exercise is a button; tapping one opens a
+// preview/edit dialog for just that entry's YAML (no id key -- the id is
+// fixed once created, since routines/logged sets reference it).
 export default function Library({ menuBtn, workoutClock }) {
-  const [text, setText] = useState('')
-  const [saved, setSaved] = useState('')
+  const [exercises, setExercises] = useState([])
+  const [dialog, setDialog] = useState(null) // {id, title, yaml, isNew}
   const [err, setErr] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [loaded, setLoaded] = useState(false)
 
-  useEffect(() => {
-    get('/exercises/raw').then((r) => { setText(r.text); setSaved(r.text); setLoaded(true) })
-      .catch((e) => setErr(e.message))
-  }, [])
+  const load = () => get('/exercises').then(setExercises)
+  useEffect(() => { load() }, [])
 
-  async function save() {
-    setBusy(true); setErr('')
+  async function openExercise(ex) {
+    setErr('')
     try {
-      const r = await put('/exercises/raw', { text })
-      setText(r.text); setSaved(r.text)
+      const r = await get(`/exercises/${encodeURIComponent(ex.id)}/raw`)
+      setDialog({ id: ex.id, title: ex.name, yaml: r.yaml, isNew: false })
     } catch (e) { setErr(e.message) }
-    setBusy(false)
   }
 
-  const dirty = text !== saved
+  function openNew() {
+    setErr('')
+    setDialog({ id: null, title: 'New exercise', yaml: NEW_EXERCISE_TEMPLATE, isNew: true })
+  }
+
+  async function saveExercise(text) {
+    if (dialog.isNew) await post('/exercises/raw', { text })
+    else await put(`/exercises/${encodeURIComponent(dialog.id)}/raw`, { text })
+    await load()
+  }
 
   return (
     <>
       <div className="pagehead">{menuBtn}<h1>Library</h1>{workoutClock}</div>
-      <p className="muted">
-        <code>shared/exercises.yaml</code> — one entry per exercise. Add a new one by
-        typing its <code>id:</code> block below.
-      </p>
       {err && <p className="error">{err}</p>}
-      {!loaded
-        ? <p className="muted">Loading…</p>
-        : (
-          <>
-            <textarea className="yaml-editor no-autoselect" spellCheck={false}
-              autoCapitalize="none" autoCorrect="off"
-              value={text} onChange={(e) => setText(e.target.value)} />
-            <button className="big primary" disabled={!dirty || busy} onClick={save}>
-              {busy ? 'Saving…' : 'Save'}
-            </button>
-          </>
-        )}
+      <div className="card">
+        <button className="big primary" onClick={openNew}>+ Add Exercise</button>
+      </div>
+      {exercises.map((ex) => (
+        <div className="card" key={ex.id}>
+          <button className="big" onClick={() => openExercise(ex)}>{ex.name}</button>
+        </div>
+      ))}
+      {!exercises.length && <p className="muted">No exercises yet. Add one above.</p>}
+
+      <YamlItemDialog open={dialog != null} title={dialog?.title} yaml={dialog?.yaml} isNew={dialog?.isNew}
+        onSave={saveExercise} onClose={() => setDialog(null)} />
     </>
   )
 }
