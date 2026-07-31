@@ -32,6 +32,28 @@ def _slugify(name: str) -> str:
     return slug or "exercise"
 
 
+def exercises_yaml_text() -> str:
+    """Raw file contents for the Library page's editor."""
+    path = config.exercises_file()
+    return path.read_text() if path.exists() else ""
+
+
+def save_exercises_yaml_text(text: str) -> None:
+    """Validate a hand-edited exercises.yaml (parses, every entry passes the
+    Exercise schema) and overwrite the file verbatim -- the editor's own text
+    is what lands on disk, so comments/formatting the user kept are preserved."""
+    raw = yaml.safe_load(text) or {}
+    if not isinstance(raw, dict):
+        raise ValueError("exercises.yaml must be a mapping of id -> attributes")
+    for id_, item in raw.items():
+        Exercise.model_validate({**(item or {}), "id": id_})
+    path = config.exercises_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    from .storage import git_commit
+    git_commit("library: edit exercises.yaml")
+
+
 def add_exercise(ex: Exercise) -> Exercise:
     """Persist a new exercise. If its id is blank, derive a unique slug from the
     name (frontend-created exercises don't supply an id).
@@ -75,6 +97,30 @@ def load_routines() -> dict[str, dict]:
             data.setdefault("name", f.stem)   # unnamed file -> its filename is the name
             out[f.stem] = data
     return out
+
+
+def routine_yaml_text(slug: str) -> str | None:
+    """Raw file contents for one routine, or None if the slug doesn't exist."""
+    path = config.routines_dir() / f"{slug}.yaml"
+    return path.read_text() if path.exists() else None
+
+
+def save_routine_yaml_text(slug: str, text: str, *, create: bool = False) -> None:
+    """Validate a hand-edited routine file (must parse to a mapping) and write
+    it verbatim, same rationale as save_exercises_yaml_text. `create=True`
+    refuses to overwrite an existing slug; otherwise the slug must exist."""
+    raw = yaml.safe_load(text) or {}
+    if not isinstance(raw, dict):
+        raise ValueError("a routine file must be a mapping (name, days, ...)")
+    path = config.routines_dir() / f"{slug}.yaml"
+    if create and path.exists():
+        raise ValueError(f"routine already exists: {slug}")
+    if not create and not path.exists():
+        raise ValueError(f"routine not found: {slug}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    from .storage import git_commit
+    git_commit(f"library: {'add' if create else 'edit'} routine {slug}")
 
 
 def find_day(routine: dict, day_name: str | None) -> dict | None:

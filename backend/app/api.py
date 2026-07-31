@@ -10,8 +10,10 @@ from pydantic import BaseModel
 
 from . import analytics, config, storage
 from .auth import current_user, make_session_token, verify_login
-from .library import (add_exercise, expand_day, find_day, load_exercises,
-                      load_routines)
+from .library import (_slugify, add_exercise, exercises_yaml_text, expand_day,
+                      find_day, load_exercises, load_routines,
+                      routine_yaml_text, save_exercises_yaml_text,
+                      save_routine_yaml_text)
 from .models import (CardioEntry, Exercise, MetricEntry, SessionEnd,
                      SessionStart, SetEntry)
 
@@ -63,6 +65,24 @@ def create_exercise(ex: Exercise, user=Depends(current_user)):
         return add_exercise(ex).model_dump()
     except ValueError as e:
         raise HTTPException(409, str(e))
+
+
+class YamlBody(BaseModel):
+    text: str
+
+
+@router.get("/exercises/raw")
+def exercises_raw(user=Depends(current_user)):
+    return {"text": exercises_yaml_text()}
+
+
+@router.put("/exercises/raw")
+def save_exercises_raw(body: YamlBody, user=Depends(current_user)):
+    try:
+        save_exercises_yaml_text(body.text)
+    except (ValueError, yaml.YAMLError) as e:
+        raise HTTPException(400, str(e))
+    return {"text": exercises_yaml_text()}
 
 
 # ---------- sessions & logging ----------
@@ -207,6 +227,48 @@ def metric_series(metric: str, user=Depends(current_user)):
 @router.get("/routines")
 def routines(user=Depends(current_user)):
     return load_routines()
+
+
+class NewRoutineBody(BaseModel):
+    slug: Optional[str] = None   # blank -> derived from name/text
+    text: str
+
+
+@router.post("/routines/raw")
+def create_routine(body: NewRoutineBody, user=Depends(current_user)):
+    slug = _slugify(body.slug) if body.slug else None
+    if not slug:
+        try:
+            name = (yaml.safe_load(body.text) or {}).get("name")
+        except yaml.YAMLError:
+            name = None
+        slug = _slugify(name) if name else _slugify("routine")
+    existing = load_routines()
+    base, n = slug, 2
+    while slug in existing:
+        slug, n = f"{base}_{n}", n + 1
+    try:
+        save_routine_yaml_text(slug, body.text, create=True)
+    except (ValueError, yaml.YAMLError) as e:
+        raise HTTPException(400, str(e))
+    return {"slug": slug, "text": routine_yaml_text(slug)}
+
+
+@router.get("/routines/{slug}/raw")
+def routine_raw(slug: str, user=Depends(current_user)):
+    text = routine_yaml_text(slug)
+    if text is None:
+        raise HTTPException(404, "routine not found")
+    return {"text": text}
+
+
+@router.put("/routines/{slug}/raw")
+def save_routine_raw(slug: str, body: YamlBody, user=Depends(current_user)):
+    try:
+        save_routine_yaml_text(slug, body.text)
+    except (ValueError, yaml.YAMLError) as e:
+        raise HTTPException(400, str(e))
+    return {"text": routine_yaml_text(slug)}
 
 
 @router.get("/routines/{slug}/preview")
