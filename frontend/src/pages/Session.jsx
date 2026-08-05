@@ -4,6 +4,7 @@ import { unlockAudio, beep } from '../audio'
 import Confirm from '../components/Confirm'
 import ExercisePicker from '../components/ExercisePicker'
 import ExerciseTrend from '../components/ExerciseTrend'
+import PlanRowEdit from '../components/PlanRowEdit'
 
 export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [exercises, setExercises] = useState([])
@@ -28,6 +29,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [completedCollapsed, setCompletedCollapsed] = useState(true) // hide the logged-set rows
   const [pickerOpen, setPickerOpen] = useState(false) // main exercise-picker modal
   const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned (opens the picker modal)
+  const [planEditIdx, setPlanEditIdx] = useState(null) // plan row open in the edit (choose-exercise/delete) modal
   const [dragIdx, setDragIdx] = useState(null)     // plan row index currently being dragged
   const [sessionNotes, setSessionNotes] = useState('') // freeform notes for the session
   const [notesOpen, setNotesOpen] = useState(false)    // session-notes box expanded
@@ -460,7 +462,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
               <span className={`chev ${planCollapsed ? '' : 'open'}`}>▸</span> Plan
             </button>
             {upcoming.length > 1 && planCollapsed && (
-              <span className="muted plan-more">+{upcoming.length - 1} more</span>
+              <span className="muted count-hint">+{upcoming.length - 1} more</span>
             )}
           </div>
           {shownUpcoming.map((p, i) => {
@@ -481,12 +483,8 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
                     {p.block ? `${p.block} · ` : ''}round {p.round}
                   </span>
                   {!planCollapsed && (
-                    <>
-                      <button className="plan-x" aria-label="Swap exercise"
-                        onClick={() => setSwapIdx(idx)}>✎</button>
-                      <button className="plan-x danger" aria-label="Remove from plan"
-                        onClick={() => removePlanRow(idx)}>×</button>
-                    </>
+                    <button className="plan-x" aria-label="Edit plan row"
+                      onClick={() => setPlanEditIdx(idx)}>✎</button>
                   )}
                 </div>
               </div>
@@ -502,7 +500,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
             style={{ marginBottom: completedCollapsed ? 0 : 6 }}
             onClick={() => setCompletedCollapsed((c) => !c)}>
             <span className={`chev ${completedCollapsed ? '' : 'open'}`}>▸</span>
-            Completed <span className="muted">· {logged.length} set{logged.length === 1 ? '' : 's'}</span>
+            Completed <span className="muted count-hint">· {logged.length} set{logged.length === 1 ? '' : 's'}</span>
           </button>
           {/* A logged set is fully editable — exercise included. The editor takes
               over the row so all four fields fit a 360px screen in one column. */}
@@ -575,8 +573,15 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
 
       <ExercisePicker open={swapIdx != null} exercises={exercises}
         value={swapIdx != null ? nameOf(plan[swapIdx]?.exercise_id) : ''}
-        onSelect={(name) => applySwap(swapIdx, name)}
+        onSelect={(name) => { applySwap(swapIdx, name); setPlanEditIdx(null) }}
         onClose={() => setSwapIdx(null)} />
+
+      <PlanRowEdit open={planEditIdx != null}
+        name={planEditIdx != null ? nameOf(plan[planEditIdx]?.exercise_id) : ''}
+        color={planEditIdx != null ? colorOf(plan[planEditIdx]?.exercise_id) : ''}
+        onPick={() => setSwapIdx(planEditIdx)}
+        onDelete={() => { removePlanRow(planEditIdx); setPlanEditIdx(null) }}
+        onClose={() => setPlanEditIdx(null)} />
 
       <ExercisePicker open={editPick} exercises={exercises} value={nameOf(editVal.exercise_id)}
         onSelect={editExercise} onClose={() => setEditPick(false)} />

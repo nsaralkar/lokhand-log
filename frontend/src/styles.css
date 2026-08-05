@@ -146,8 +146,9 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .section-toggle .chev { display: inline-block; width: 16px; text-align: center;
   font-size: 15px; line-height: 1; color: var(--ink); transition: transform 0.15s ease; }
 .section-toggle .chev.open { transform: rotate(90deg); }
-/* "+N more" hint beside a collapsed Plan header */
-.plan-more { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+/* Small condensed count hint beside a section header — the collapsed Plan's
+   "+N more" and the Completed card's "· N sets" share this look. */
+.count-hint { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
 /* Plan-row right side: round meta + remove button */
 .plan-right { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 .plan-x { min-height: 32px; width: 30px; padding: 0; background: none; border: none;
