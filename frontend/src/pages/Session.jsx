@@ -571,17 +571,20 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         onSelect={(name) => { setExText(name); setPickerOpen(false) }}
         onClose={() => setPickerOpen(false)} />
 
-      <ExercisePicker open={swapIdx != null} exercises={exercises}
-        value={swapIdx != null ? nameOf(plan[swapIdx]?.exercise_id) : ''}
-        onSelect={(name) => { applySwap(swapIdx, name); setPlanEditIdx(null) }}
-        onClose={() => setSwapIdx(null)} />
-
+      {/* Rendered before the swap picker below: two same-z-index modal-scrims
+          stack by DOM order, and the picker needs to land on top when the
+          "choose exercise" tap inside this modal opens it. */}
       <PlanRowEdit open={planEditIdx != null}
         name={planEditIdx != null ? nameOf(plan[planEditIdx]?.exercise_id) : ''}
         color={planEditIdx != null ? colorOf(plan[planEditIdx]?.exercise_id) : ''}
         onPick={() => setSwapIdx(planEditIdx)}
         onDelete={() => { removePlanRow(planEditIdx); setPlanEditIdx(null) }}
         onClose={() => setPlanEditIdx(null)} />
+
+      <ExercisePicker open={swapIdx != null} exercises={exercises}
+        value={swapIdx != null ? nameOf(plan[swapIdx]?.exercise_id) : ''}
+        onSelect={(name) => { applySwap(swapIdx, name); setPlanEditIdx(null) }}
+        onClose={() => setSwapIdx(null)} />
 
       <ExercisePicker open={editPick} exercises={exercises} value={nameOf(editVal.exercise_id)}
         onSelect={editExercise} onClose={() => setEditPick(false)} />
