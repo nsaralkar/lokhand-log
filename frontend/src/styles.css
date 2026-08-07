@@ -132,7 +132,13 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
    stops the browser from treating the drag as a page scroll on mobile. */
 .plan-handle { flex: 0 0 auto; width: 20px; text-align: center; color: var(--muted);
   font-size: 16px; line-height: 1; touch-action: none; cursor: grab; }
-.plan-row.dragging { opacity: 0.6; background: var(--surface-2); border-radius: var(--radius); }
+
+/* The floating row that follows the pointer during a plan-row drag (see
+   startRowDrag in Session.jsx) — lifted out of the list's flow entirely via
+   position:fixed, elevated with a shadow, while the row it came from becomes
+   an empty .plan-row placeholder that reorderPlan moves under it. */
+.plan-ghost { position: fixed; z-index: 20; pointer-events: none;
+  background: var(--surface-2); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4); }
 
 /* Section titles (Plan / Completed / Session notes) share the exercise-subtab
    label look: condensed, uppercase, muted. Some are collapse toggles. */

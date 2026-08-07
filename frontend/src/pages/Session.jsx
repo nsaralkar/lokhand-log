@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { get, post, patch, del, WEIGHT_UNIT, RESUME_KEY, exColor, fmtSet, scoreLabel, scoreFmt } from '../api'
 import { unlockAudio, beep } from '../audio'
 import Confirm from '../components/Confirm'
@@ -38,7 +38,17 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const hydrated = useRef(false)
   const beeped = useRef(false)
   const rowRefs = useRef({})   // plan index -> row DOM node, for drag-drop hit testing
+  const keyedRowRefs = useRef({})  // plan-row _key -> DOM node, for FLIP-animating reorders
+  const flipRects = useRef({})     // plan-row _key -> last-measured rect, FLIP's "First"
+  const floatRef = useRef(null)    // the floating ghost row that tracks the pointer while dragging
+  const dragMeta = useRef(null)    // { grabDY, left, width, top, item } for the row currently being grabbed
   const autoPop = useRef(true)   // gate last-set autofill to genuine exercise switches (off on resume)
+
+  // Stable per-row identity for React keys / FLIP tracking, independent of the
+  // row's position in the plan (which changes on every reorder). Routine-
+  // expanded plans and manually-added rows don't carry one from the backend.
+  const mintKey = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  const withKeys = (planArr) => planArr.map((p) => (p._key ? p : { ...p, _key: mintKey() }))
 
   const loadExercises = () =>
     get('/exercises').then((xs) => { setExercises(xs); setExErr('') })
@@ -70,7 +80,9 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     try {
       const saved = JSON.parse(localStorage.getItem(RESUME_KEY) || 'null')
       if (saved?.session) {
-        setSession(saved.session)
+        // Backfill _key on a session resumed from before this field existed.
+        const plan = saved.session.plan ? withKeys(saved.session.plan) : saved.session.plan
+        setSession({ ...saved.session, plan })
         refreshLogged(saved.session.session_id)
         setExText(saved.exText || '')
         setWeight(saved.weight ?? null)
@@ -149,6 +161,34 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     else if (exercises.length) setExText('')  // planned id isn't in the library — prompt for a pick
   }, [session?.plan, session?.planIdx, exercises])
 
+  // FLIP the plan rows whenever their order changes (drag, swap, add, remove):
+  // measure each row's position, and if it moved since the last pass, invert
+  // the jump into a transform and release it — so neighbors visibly slide into
+  // the gap instead of snapping. Skipped for the row currently being finger-
+  // dragged; that one tracks the pointer directly via the floating ghost.
+  useLayoutEffect(() => {
+    const draggedKey = dragMeta.current?.item?._key
+    const prev = flipRects.current
+    const next = {}
+    for (const [key, node] of Object.entries(keyedRowRefs.current)) {
+      if (!node) continue
+      const rect = node.getBoundingClientRect()
+      next[key] = rect
+      if (key === draggedKey) continue
+      const before = prev[key]
+      if (before && before.top !== rect.top) {
+        const dy = before.top - rect.top
+        node.style.transition = 'none'
+        node.style.transform = `translateY(${dy}px)`
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          node.style.transition = 'transform 180ms ease'
+          node.style.transform = ''
+        }))
+      }
+    }
+    flipRects.current = next
+  }, [session?.plan, dragIdx])
+
   const history = useMemo(() => prog.slice(-3).reverse(), [prog])
 
   // Keep the screen awake mid-session so the rest timer stays visible.
@@ -185,7 +225,9 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
 
   async function start() {
     const r = await post('/sessions/start', {})
-    setSession({ session_id: r.session_id, plan: r.plan, planIdx: 0, startedAt: Date.now() })
+    flipRects.current = {}; keyedRowRefs.current = {}
+    setSession({ session_id: r.session_id, plan: r.plan ? withKeys(r.plan) : r.plan,
+      planIdx: 0, startedAt: Date.now() })
     setLogged([]); setExTab('exercise'); setPlanCollapsed(true); setCompletedCollapsed(true); setSwapIdx(null)
     setTimer(null); setSetStartAt(Date.now())
     setExText('')
@@ -240,7 +282,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   function addPlanRow() {
     const newIdx = (session.plan || []).length
     setSession((s) => ({ ...s,
-      plan: [...(s.plan || []), { exercise_id: exerciseId || '', round: 1, rest_s: null }] }))
+      plan: [...(s.plan || []), { exercise_id: exerciseId || '', round: 1, rest_s: null, _key: mintKey() }] }))
     setPlanCollapsed(false)
     setSwapIdx(newIdx)
   }
@@ -256,19 +298,39 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   }
 
   // Drag-to-reorder via Pointer Events (works for touch and mouse alike, unlike
-  // HTML5 drag-and-drop). Live-swaps the plan row whenever the pointer crosses
-  // into a neighboring row's bounds; row DOM nodes are tracked in rowRefs.
+  // HTML5 drag-and-drop). A press only becomes a drag after a 200ms hold on the
+  // handle, so a quick tap doesn't accidentally grab the row. Once armed, the
+  // grabbed row turns into a floating ghost that tracks the pointer directly
+  // (see the render below); the row's own slot in the list becomes an empty
+  // placeholder, which reorderPlan moves whenever the pointer crosses into a
+  // neighboring row's bounds. The FLIP effect above handles the neighbors'
+  // slide; the ghost's own position is driven imperatively here for smoothness
+  // (updating it via React state on every pointermove would be needlessly
+  // re-rendering the whole row list at pointer-move frequency).
   function startRowDrag(e, idx) {
     e.preventDefault()
-    setDragIdx(idx)
     let current = idx
+    let dragging = false
+    const armTimer = setTimeout(() => {
+      const rect = rowRefs.current[idx]?.getBoundingClientRect()
+      if (!rect) return
+      dragging = true
+      dragMeta.current = {
+        grabDY: e.clientY - rect.top, left: rect.left, width: rect.width,
+        top: rect.top, item: plan[idx],
+      }
+      setDragIdx(idx)
+    }, 200)
+
     const onMove = (ev) => {
-      const y = ev.clientY
+      if (!dragging) return
+      if (floatRef.current) floatRef.current.style.top = `${ev.clientY - dragMeta.current.grabDY}px`
       for (const [key, el] of Object.entries(rowRefs.current)) {
         if (!el) continue
         const target = Number(key)
+        if (target === current) continue
         const r = el.getBoundingClientRect()
-        if (y >= r.top && y <= r.bottom && target !== current) {
+        if (ev.clientY >= r.top && ev.clientY <= r.bottom) {
           reorderPlan(current, target)
           current = target
           setDragIdx(target)
@@ -277,7 +339,17 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
       }
     }
     const onUp = () => {
-      setDragIdx(null)
+      clearTimeout(armTimer)
+      if (dragging) {
+        // Bookkeep the ghost's last floating rect as this row's "before" spot,
+        // so the FLIP effect animates it landing back into the list instead of
+        // just popping into place once the ghost unmounts.
+        if (floatRef.current && dragMeta.current) {
+          flipRects.current[dragMeta.current.item._key] = floatRef.current.getBoundingClientRect()
+        }
+        dragMeta.current = null
+        setDragIdx(null)
+      }
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
@@ -488,11 +560,12 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
           </div>
           {shownUpcoming.map((p, i) => {
             const idx = session.planIdx + i
+            const rowRef = (el) => { rowRefs.current[idx] = el; keyedRowRefs.current[p._key] = el }
             // Editing a plan row expands it inline — exercise picker + delete —
             // the same pattern as a Completed set, instead of a modal.
             if (planEditIdx === idx) {
               return (
-                <div className="setedit" key={`up-${idx}`} ref={(el) => (rowRefs.current[idx] = el)}>
+                <div className="setedit" key={p._key} ref={rowRef}>
                   <button className="expicker-trigger" onClick={() => setSwapIdx(idx)}>
                     <span className="exdot" style={{ background: colorOf(p.exercise_id) }} />
                     {nameOf(p.exercise_id) || <span className="muted">choose exercise…</span>}
@@ -505,9 +578,14 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
                 </div>
               )
             }
+            // The row currently being finger-dragged is a blank placeholder —
+            // an empty slot at wherever the pointer is hovering — while its
+            // actual content floats separately as the ghost rendered below.
+            if (dragIdx === idx) {
+              return <div className="plan-row" key={p._key} ref={rowRef} />
+            }
             return (
-              <div className={`plan-row ${i === 0 ? 'current' : ''} ${dragIdx === idx ? 'dragging' : ''}`}
-                key={`up-${idx}`} ref={(el) => (rowRefs.current[idx] = el)}>
+              <div className={`plan-row ${i === 0 ? 'current' : ''}`} key={p._key} ref={rowRef}>
                 <div className="plan-main">
                   {!planCollapsed && (
                     <span className="plan-handle" aria-label="Drag to reorder"
@@ -529,6 +607,17 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
             )
           })}
           {!planCollapsed && <button className="plan-add" onClick={addPlanRow}>＋ add exercise</button>}
+        </div>
+      )}
+
+      {dragIdx != null && dragMeta.current && (
+        <div className="plan-row plan-ghost" ref={floatRef}
+          style={{ left: dragMeta.current.left, width: dragMeta.current.width, top: dragMeta.current.top }}>
+          <div className="plan-main">
+            <span className="plan-handle" aria-hidden="true">⠿</span>
+            <span className="exdot" style={{ background: colorOf(dragMeta.current.item.exercise_id) }} />
+            <span className="plan-ex">{nameOf(dragMeta.current.item.exercise_id)}</span>
+          </div>
         </div>
       )}
 
