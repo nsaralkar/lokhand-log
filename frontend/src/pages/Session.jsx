@@ -40,6 +40,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const rowRefs = useRef({})   // plan index -> row DOM node, for drag-drop hit testing
   const keyedRowRefs = useRef({})  // plan-row _key -> DOM node, for FLIP-animating reorders
   const flipRects = useRef({})     // plan-row _key -> last-measured rect, FLIP's "First"
+  const flipFrames = useRef({})    // plan-row _key -> pending {raf1, raf2} release, so overlapping reorders don't stomp each other
   const floatRef = useRef(null)    // the floating ghost row that tracks the pointer while dragging
   const dragMeta = useRef(null)    // { grabDY, left, width, top, item } for the row currently being grabbed
   const autoPop = useRef(true)   // gate last-set autofill to genuine exercise switches (off on resume)
@@ -166,9 +167,31 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   // the jump into a transform and release it — so neighbors visibly slide into
   // the gap instead of snapping. Skipped for the row currently being finger-
   // dragged; that one tracks the pointer directly via the floating ghost.
+  //
+  // A fast drag can trigger this effect again before the previous pass's
+  // slide has finished (each pointer-crossing reorders the plan and re-runs
+  // it). Two things guard against that overlap turning into jitter:
+  // - every node is snapped to transform:none right before it's measured, so
+  //   getBoundingClientRect always reads a settled natural position instead
+  //   of whatever point a still-running CSS transition happened to be at
+  //   (that mid-transition sampling was the actual bug — it fed essentially
+  //   random deltas into the next invert, throwing rows way outside the list).
+  // - any release still pending from an earlier pass is cancelled before a
+  //   node is touched again, so a stale rAF can't clobber a fresh invert.
   useLayoutEffect(() => {
     const draggedKey = dragMeta.current?.item?._key
     const prev = flipRects.current
+    for (const [key, node] of Object.entries(keyedRowRefs.current)) {
+      if (!node) continue
+      const pending = flipFrames.current[key]
+      if (pending) {
+        cancelAnimationFrame(pending.raf1)
+        if (pending.raf2) cancelAnimationFrame(pending.raf2)
+        delete flipFrames.current[key]
+      }
+      node.style.transition = 'none'
+      node.style.transform = ''
+    }
     const next = {}
     for (const [key, node] of Object.entries(keyedRowRefs.current)) {
       if (!node) continue
@@ -178,12 +201,16 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
       const before = prev[key]
       if (before && before.top !== rect.top) {
         const dy = before.top - rect.top
-        node.style.transition = 'none'
         node.style.transform = `translateY(${dy}px)`
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          node.style.transition = 'transform 180ms ease'
-          node.style.transform = ''
-        }))
+        const handle = {}
+        handle.raf1 = requestAnimationFrame(() => {
+          handle.raf2 = requestAnimationFrame(() => {
+            node.style.transition = 'transform 180ms ease'
+            node.style.transform = ''
+            delete flipFrames.current[key]
+          })
+        })
+        flipFrames.current[key] = handle
       }
     }
     flipRects.current = next
@@ -225,7 +252,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
 
   async function start() {
     const r = await post('/sessions/start', {})
-    flipRects.current = {}; keyedRowRefs.current = {}
+    flipRects.current = {}; flipFrames.current = {}; keyedRowRefs.current = {}
     setSession({ session_id: r.session_id, plan: r.plan ? withKeys(r.plan) : r.plan,
       planIdx: 0, startedAt: Date.now() })
     setLogged([]); setExTab('exercise'); setPlanCollapsed(true); setCompletedCollapsed(true); setSwapIdx(null)
