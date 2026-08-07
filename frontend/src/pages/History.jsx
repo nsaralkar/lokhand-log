@@ -27,7 +27,9 @@ export default function History({ openSession: deepLink, onOpened, menuBtn, work
   }
 
   async function saveEdit() {
-    const p = { [editing.kind]: Number(editing.qty) }
+    const p = editing.kind === 'combo'
+      ? { duration_s: Number(editing.qty), distance_mi: Number(editing.qty2) }
+      : { [editing.kind]: Number(editing.qty) }
     if (editing.weight != null && editing.weight !== '')
       p.weight_lb = Number(editing.weight)
     await patch(`/entries/${editing.id}`, p)
@@ -63,7 +65,7 @@ export default function History({ openSession: deepLink, onOpened, menuBtn, work
   }
 
   if (open) {
-    const sets = open.entries.filter((e) => e.type === 'set' || e.type === 'cardio')
+    const sets = open.entries.filter((e) => e.type === 'set')
     const start = open.entries.find((e) => e.type === 'session_start')
     const end = open.entries.find((e) => e.type === 'session_end')
     return (
@@ -114,8 +116,8 @@ export default function History({ openSession: deepLink, onOpened, menuBtn, work
             <div className="entry" key={e.id}>
               <div>
                 <div className="main">
-                  <span className="exdot" style={{ background: e.type === 'cardio' ? '#7e8894' : exColor(exercises[e.exercise_id]?.primary) }} />
-                  {e.type === 'cardio' ? e.activity : (exercises[e.exercise_id]?.name || e.exercise_id)}
+                  <span className="exdot" style={{ background: exColor(exercises[e.exercise_id]?.primary) }} />
+                  {exercises[e.exercise_id]?.name || e.exercise_id}
                 </div>
                 <div className="meta">
                   {e.since_prev_s != null && `+${fmtDuration(e.since_prev_s)}`}
@@ -128,6 +130,10 @@ export default function History({ openSession: deepLink, onOpened, menuBtn, work
                     onChange={(ev) => setEditing({ ...editing, weight: ev.target.value })} />
                   <input inputMode={editing.kind === 'distance_mi' ? 'decimal' : 'numeric'} value={editing.qty}
                     onChange={(ev) => setEditing({ ...editing, qty: ev.target.value })} />
+                  {editing.kind === 'combo' && (
+                    <input inputMode="decimal" value={editing.qty2}
+                      onChange={(ev) => setEditing({ ...editing, qty2: ev.target.value })} />
+                  )}
                   <button className="primary" onClick={saveEdit}>✓</button>
                   <button className="ghost danger" style={{ minHeight: 40, padding: '0 10px' }}
                     onClick={() => setConfirmId(e.id)}>✕</button>
@@ -135,15 +141,15 @@ export default function History({ openSession: deepLink, onOpened, menuBtn, work
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div className="load">
-                    {e.type === 'cardio' ? `${e.distance_mi ?? '—'} mi` : fmtSet(e)}
+                    {fmtSet(e)}
                   </div>
-                  {e.type === 'set' && (
-                    <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
-                      onClick={() => setEditing({ id: e.id,
-                        kind: e.duration_s != null ? 'duration_s' : e.distance_mi != null ? 'distance_mi' : 'reps',
-                        qty: e.duration_s ?? e.distance_mi ?? e.reps,
-                        weight: e.weight_lb ?? e.added_weight_lb })}>✎</button>
-                  )}
+                  <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
+                    onClick={() => setEditing({ id: e.id,
+                      kind: e.duration_s != null && e.distance_mi != null ? 'combo'
+                        : e.duration_s != null ? 'duration_s' : e.distance_mi != null ? 'distance_mi' : 'reps',
+                      qty: e.duration_s ?? e.distance_mi ?? e.reps,
+                      qty2: e.distance_mi,
+                      weight: e.weight_lb ?? e.added_weight_lb })}>✎</button>
                 </div>
               )}
             </div>

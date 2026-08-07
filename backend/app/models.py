@@ -32,7 +32,9 @@ class BaseEntry(BaseModel):
 class SetEntry(BaseEntry):
     """One resistance set. Supersets/circuits = consecutive SetEntries.
     Exactly one of reps/duration_s/distance_mi is set, per the exercise's
-    `metric` (reps for lifts, duration for holds, distance for carries/runs)."""
+    `metric` (reps for lifts, duration for holds, distance for carries/runs) --
+    except `duration+distance` exercises (Peloton, runs...), which carry both
+    duration_s and distance_mi together and no reps."""
     type: Literal["set"] = "set"
     session_id: str
     exercise_id: str
@@ -55,8 +57,12 @@ class SetEntry(BaseEntry):
 
     @model_validator(mode="after")
     def _one_metric(self):
-        if sum(x is not None for x in (self.reps, self.duration_s, self.distance_mi)) != 1:
-            raise ValueError("set needs exactly one of reps, duration_s, distance_mi")
+        n = sum(x is not None for x in (self.reps, self.duration_s, self.distance_mi))
+        if n == 2 and self.reps is None:
+            return self   # duration_s + distance_mi together (duration+distance exercises)
+        if n != 1:
+            raise ValueError("set needs exactly one of reps, duration_s, distance_mi "
+                             "(or duration_s and distance_mi together)")
         return self
 
     @model_validator(mode="after")
@@ -69,15 +75,6 @@ class SetEntry(BaseEntry):
                 self.weight_lb = self.added_weight_lb
             self.added_weight_lb = None
         return self
-
-
-class CardioEntry(BaseEntry):
-    type: Literal["cardio"] = "cardio"
-    session_id: str
-    activity: str                          # run, bike, row, ruck, otf_class...
-    duration_s: int
-    distance_mi: Optional[float] = None
-    avg_hr: Optional[int] = None
 
 
 class SessionStart(BaseEntry):
@@ -105,7 +102,6 @@ class MetricEntry(BaseEntry):
 
 ENTRY_TYPES = {
     "set": SetEntry,
-    "cardio": CardioEntry,
     "session_start": SessionStart,
     "session_end": SessionEnd,
     "metric": MetricEntry,
@@ -125,7 +121,7 @@ class Exercise(BaseModel):
     equipment: Optional[str] = None        # barbell | dumbbell | cable | machine | bodyweight
     primary: str
     secondary: list[str] = []
-    metric: Literal["reps", "duration", "distance"] = "reps"  # how sets are counted
+    metric: Literal["reps", "duration", "distance", "duration+distance"] = "reps"  # how sets are counted
     default_rest_s: int = 120
     notes: Optional[str] = None            # form cues / setup reminders, shown on the Info tab
 

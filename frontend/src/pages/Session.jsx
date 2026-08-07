@@ -13,6 +13,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [exText, setExText] = useState('')     // exercise picker text (name)
   const [weight, setWeight] = useState(null)   // pounds
   const [qty, setQty] = useState(10)           // reps, seconds, or miles — per exercise.metric
+  const [qty2, setQty2] = useState(null)       // distance (mi), only for duration+distance exercises
   const [rpe, setRpe] = useState(null)
   const [timer, setTimer] = useState(null)     // {target, startedAt}: rest countdown
   const [now, setNow] = useState(0)            // ticks every 500ms while a session is live
@@ -21,7 +22,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [exTab, setExTab] = useState('exercise') // 'exercise' | 'history' | 'info'
   const [logged, setLogged] = useState([])
   const [editId, setEditId] = useState(null)   // logged set being edited
-  const [editVal, setEditVal] = useState({ exercise_id: '', weight: '', kind: 'reps', qty: '', rpe: '' })
+  const [editVal, setEditVal] = useState({ exercise_id: '', weight: '', kind: 'reps', qty: '', qty2: '', rpe: '' })
   const [editPick, setEditPick] = useState(false)  // exercise picker for the set being edited
   const [confirmId, setConfirmId] = useState(null) // set pending delete
   const [confirmFinish, setConfirmFinish] = useState(false) // finish-workout pending confirmation
@@ -51,8 +52,12 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const nameOf = (id) => exercises.find((e) => e.id === id)?.name || id
   const colorOf = (id) => exColor(exercises.find((e) => e.id === id)?.primary)
   // Which entry field a set of this exercise fills, and how that field reads.
-  const kindOf = (metric) => metric === 'duration' ? 'duration_s' : metric === 'distance' ? 'distance_mi' : 'reps'
+  // duration+distance carries both duration_s and distance_mi — qty covers the
+  // former (like plain `duration`), qty2 covers the latter.
+  const kindOf = (metric) => metric === 'duration' || metric === 'duration+distance' ? 'duration_s'
+    : metric === 'distance' ? 'distance_mi' : 'reps'
   const unitOf = (kind) => kind === 'duration_s' ? 'sec' : kind === 'distance_mi' ? 'mi' : 'reps'
+  const isCombo = (metric) => metric === 'duration+distance'
 
   // The Completed list is the server's truth, not a client-side copy — so it
   // always reflects the actual file (incl. edits made directly to the JSONL).
@@ -71,6 +76,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         setExText(saved.exText || '')
         setWeight(saved.weight ?? null)
         setQty(saved.qty ?? 10)
+        setQty2(saved.qty2 ?? null)
         setSetStartAt(saved.setStartAt ?? Date.now())
         setSessionNotes(saved.sessionNotes || '')
         setNotesOpen(!!saved.notesOpen)
@@ -87,11 +93,11 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     if (!hydrated.current) return
     if (session) {
       localStorage.setItem(RESUME_KEY, JSON.stringify({
-        session, exText, weight, qty, setStartAt, sessionNotes, notesOpen }))
+        session, exText, weight, qty, qty2, setStartAt, sessionNotes, notesOpen }))
     } else {
       localStorage.removeItem(RESUME_KEY)
     }
-  }, [session, exText, weight, qty, setStartAt, sessionNotes, notesOpen])
+  }, [session, exText, weight, qty, qty2, setStartAt, sessionNotes, notesOpen])
 
   // The picker stores/searches by name; the canonical id is derived from it.
   const exercise = useMemo(
@@ -117,6 +123,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         if (autoPop.current && last) {
           setWeight(last.load_lb)
           setQty(last.duration_s ?? last.distance_mi ?? last.reps)
+          setQty2(last.distance_mi ?? null)   // only shown for duration+distance
           setRpe(last.rpe ?? null)            // RPE recalls the last set too
         }
         autoPop.current = true
@@ -194,6 +201,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         rpe: rpe || undefined,
       }
       body[kindOf(metric)] = qty
+      if (isCombo(metric)) body.distance_mi = qty2
       if (showWeight) body.weight_lb = weight
       const r = await post('/sets', body)
       setLogged((l) => [{ ...body, id: r.id }, ...l])  // optimistic; reconciled below
@@ -279,10 +287,14 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   }
 
   function startEdit(l) {
-    const kind = l.duration_s != null ? 'duration_s' : l.distance_mi != null ? 'distance_mi' : 'reps'
+    const kind = l.duration_s != null && l.distance_mi != null ? 'combo'
+      : l.duration_s != null ? 'duration_s' : l.distance_mi != null ? 'distance_mi' : 'reps'
     setEditId(l.id)
     setEditVal({ exercise_id: l.exercise_id, kind,
-      weight: l.weight_lb ?? l.added_weight_lb ?? '', qty: l[kind] ?? '', rpe: l.rpe ?? '' })
+      weight: l.weight_lb ?? l.added_weight_lb ?? '',
+      qty: kind === 'combo' ? l.duration_s : (l[kind] ?? ''),
+      qty2: kind === 'combo' ? l.distance_mi : '',
+      rpe: l.rpe ?? '' })
   }
 
   // Re-point a logged set at a different exercise. If the new one is tracked by
@@ -292,8 +304,9 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     const ex = exercises.find((e) => e.name === name)
     setEditPick(false)
     if (!ex) return
-    const kind = kindOf(ex.metric)
-    setEditVal((v) => ({ ...v, exercise_id: ex.id, kind, qty: v.kind === kind ? v.qty : '' }))
+    const kind = isCombo(ex.metric) ? 'combo' : kindOf(ex.metric)
+    setEditVal((v) => ({ ...v, exercise_id: ex.id, kind,
+      qty: v.kind === kind ? v.qty : '', qty2: v.kind === kind ? v.qty2 : '' }))
   }
 
   async function saveEdit(l) {
@@ -303,7 +316,9 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     const p = {
       exercise_id: editVal.exercise_id, weight_lb: num(editVal.weight), rpe: num(editVal.rpe),
       reps: null, duration_s: null, distance_mi: null, added_weight_lb: null,
-      [editVal.kind]: num(editVal.qty),
+      ...(editVal.kind === 'combo'
+        ? { duration_s: num(editVal.qty), distance_mi: num(editVal.qty2) }
+        : { [editVal.kind]: num(editVal.qty) }),
     }
     try {
       await patch(`/entries/${l.id}`, p)
@@ -381,6 +396,13 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
                   onChange={(e) => setQty(e.target.value === '' ? null : Number(e.target.value))} />
                 <span className="unit">{qtyUnit}</span>
               </div>
+              {isCombo(metric) && (
+                <div className="field">
+                  <input className="numval" inputMode="decimal" value={qty2 ?? ''}
+                    onChange={(e) => setQty2(e.target.value === '' ? null : Number(e.target.value))} />
+                  <span className="unit">mi</span>
+                </div>
+              )}
               <div className="field">
                 <input className="numval" inputMode="decimal" value={rpe ?? ''}
                   onChange={(e) => setRpe(e.target.value === '' ? null : Number(e.target.value))} />
@@ -518,10 +540,17 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
                 </label>
                 <label className="setedit-field">
                   <input inputMode={editVal.kind === 'distance_mi' ? 'decimal' : 'numeric'}
-                    value={editVal.qty} aria-label={unitOf(editVal.kind)}
+                    value={editVal.qty} aria-label={editVal.kind === 'combo' ? 'sec' : unitOf(editVal.kind)}
                     onChange={(e) => setEditVal({ ...editVal, qty: e.target.value })} />
-                  <span className="unit">{unitOf(editVal.kind)}</span>
+                  <span className="unit">{editVal.kind === 'combo' ? 'sec' : unitOf(editVal.kind)}</span>
                 </label>
+                {editVal.kind === 'combo' && (
+                  <label className="setedit-field">
+                    <input inputMode="decimal" value={editVal.qty2} aria-label="mi"
+                      onChange={(e) => setEditVal({ ...editVal, qty2: e.target.value })} />
+                    <span className="unit">mi</span>
+                  </label>
+                )}
                 <label className="setedit-field">
                   <input inputMode="decimal" value={editVal.rpe} aria-label="rpe"
                     onChange={(e) => setEditVal({ ...editVal, rpe: e.target.value })} />

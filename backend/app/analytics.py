@@ -91,12 +91,13 @@ def epley_1rm(load_lb: float, reps: int) -> float:
 
 def _set_score(row: dict) -> float:
     """Progression/PR score for one set, generalized across metrics: est. 1RM
-    for reps-based lifts, else the raw duration/distance (bigger is better)."""
+    for reps-based lifts, else the raw duration/distance (bigger is better).
+    Duration+distance sets (Peloton, runs...) score on distance covered."""
     if row.get("reps") is not None:
         return epley_1rm(_set_load_lb(row), row["reps"])
-    if row.get("duration_s") is not None:
-        return row["duration_s"]
-    return row.get("distance_mi") or 0.0
+    if row.get("distance_mi") is not None:
+        return row["distance_mi"]
+    return row.get("duration_s") or 0.0
 
 
 def _set_volume(row: dict) -> float:
@@ -104,9 +105,9 @@ def _set_volume(row: dict) -> float:
     distance — the same generalization _set_score makes, summed not maxed."""
     if row.get("reps") is not None:
         return _set_load_lb(row) * row["reps"]
-    if row.get("duration_s") is not None:
-        return row["duration_s"]
-    return row.get("distance_mi") or 0.0
+    if row.get("distance_mi") is not None:
+        return row["distance_mi"]
+    return row.get("duration_s") or 0.0
 
 
 def exercise_progression(username: str, exercise_id: str, limit_sessions: int = 50) -> dict:
@@ -197,16 +198,21 @@ def metric_series(username: str, metric: str) -> list[dict]:
             if r.get("metric") == metric]
 
 
-def cardio_trends(username: str, activity: Optional[str] = None) -> list[dict]:
+def cardio_trends(username: str, exercise_id: Optional[str] = None) -> list[dict]:
+    """Sets logged against a `duration+distance` exercise (Peloton, runs...),
+    with pace derived — the exercise-based replacement for the old freeform
+    cardio entry type."""
+    exercises = load_exercises()
     out = []
-    for r in iter_entries(config.workouts_dir(username)):
-        if r.get("type") != "cardio":
+    for row in _work_sets(username):
+        ex = exercises.get(row["exercise_id"])
+        if ex is None or ex.metric != "duration+distance":
             continue
-        if activity and r["activity"] != activity:
+        if exercise_id and row["exercise_id"] != exercise_id:
             continue
-        pace = (r["duration_s"] / 60 / r["distance_mi"]) if r.get("distance_mi") else None
-        out.append({"date": r["ts"][:10], "activity": r["activity"],
-                    "duration_s": r["duration_s"], "distance_mi": r.get("distance_mi"),
-                    "pace_min_per_mi": round(pace, 2) if pace else None,
-                    "avg_hr": r.get("avg_hr")})
+        dur, dist = row.get("duration_s"), row.get("distance_mi")
+        pace = (dur / 60 / dist) if dur and dist else None
+        out.append({"date": row["ts"][:10], "exercise_id": row["exercise_id"],
+                    "duration_s": dur, "distance_mi": dist,
+                    "pace_min_per_mi": round(pace, 2) if pace else None})
     return out

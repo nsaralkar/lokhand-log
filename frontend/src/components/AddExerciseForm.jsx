@@ -34,6 +34,7 @@ export default function AddExerciseForm({ onSubmit }) {
         <option value="reps">Reps</option>
         <option value="duration">Duration (e.g. planks, holds)</option>
         <option value="distance">Distance (e.g. carries, runs)</option>
+        <option value="duration+distance">Duration + distance (e.g. Peloton, runs w/ pace)</option>
       </select>
       <label>Equipment (optional)</label>
       <input value={f.equipment} onChange={(e) => set('equipment', e.target.value)}

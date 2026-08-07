@@ -102,6 +102,39 @@ def test_cardio_exercise_tracks_no_weight(client):
     assert client.get("/api/analytics/muscle-volume").status_code == 200
 
 
+def test_duration_distance_exercise(client):
+    """Peloton/run-style exercises carry duration_s and distance_mi together on
+    one set, with pace derived and distance driving the PR score."""
+    ride = client.post("/api/exercises", json={
+        "name": "Peloton Cycling", "primary": "cardio", "metric": "duration+distance"}).json()
+    assert ride["metric"] == "duration+distance"
+
+    sid = client.post("/api/sessions/start", json={}).json()["session_id"]
+    r = client.post("/api/sets", json={
+        "session_id": sid, "exercise_id": ride["id"], "duration_s": 1860, "distance_mi": 9.4})
+    assert r.status_code == 200
+
+    # reps still can't be mixed in alongside duration_s/distance_mi.
+    bad = client.post("/api/sets", json={
+        "session_id": sid, "exercise_id": ride["id"],
+        "duration_s": 1860, "distance_mi": 9.4, "reps": 1})
+    assert bad.status_code == 422
+
+    detail = client.get(f"/api/sessions/{sid}").json()
+    set_row = next(e for e in detail["entries"] if e["type"] == "set")
+    assert set_row["duration_s"] == 1860 and set_row["distance_mi"] == 9.4
+
+    prs = {p["exercise_id"]: p for p in client.get("/api/analytics/prs").json()}
+    assert prs[ride["id"]]["e1rm_lb"] == 9.4   # distance covered is the score
+
+    trend = client.get("/api/analytics/cardio", params={"exercise_id": ride["id"]}).json()
+    assert trend[0]["distance_mi"] == 9.4 and trend[0]["pace_min_per_mi"] == round(1860 / 60 / 9.4, 2)
+
+    # Analytics that only understand tonnage must not crash on it.
+    assert client.get("/api/analytics/volume").status_code == 200
+    assert client.get("/api/analytics/muscle-volume").status_code == 200
+
+
 def test_progression_reports_session_volume(client):
     """Each session in a progression carries its total work, not just the top
     set's e1RM — that's what the exercise trend plots by default."""

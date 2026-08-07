@@ -116,7 +116,7 @@ def delete_entry(base: Path, entry_id: str) -> None:
 
 
 def delete_session(base: Path, session_id: str) -> int:
-    """Remove every entry (start/sets/cardio/end) belonging to a session. Returns
+    """Remove every entry (start/sets/end) belonging to a session. Returns
     the number of entries removed (0 = session not found). Scans all monthly
     files since a session can, rarely, straddle a month boundary."""
     removed = 0

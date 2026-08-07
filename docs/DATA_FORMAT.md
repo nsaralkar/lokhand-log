@@ -22,7 +22,7 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
 {"id":"a1b2c3d4e5f6","ts":"2026-07-04T09:12:31-04:00","type":"session_start","session_id":"9f8e7d6c5b4a","name":"Push Day","routine":"dumbbell_split","day":"Push Day"}
 {"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"chest_press_db_incline","weight_lb":100,"reps":12,"rpe":8,"notes":"felt strong"}
 {"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"pullup","weight_lb":25.0,"reps":6}
-{"id":"...","ts":"...","type":"cardio","session_id":"...","activity":"run","duration_s":1860,"distance_mi":3.1,"avg_hr":152}
+{"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"peloton_cycling","duration_s":1860,"distance_mi":9.4}
 {"id":"...","ts":"...","type":"session_end","session_id":"9f8e7d6c5b4a"}
 ```
 
@@ -38,6 +38,10 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
   athlete's weight does. (`added_weight_lb` in pre-2026-07 entries is the same
   quantity under the old name; it's read as `weight_lb` and rewritten on edit.)
   Duration/distance sets normally carry no weight at all.
+- **`duration+distance` sets carry both fields together** (Peloton, runs, rows —
+  anything that natively reports elapsed time and distance at once): `duration_s`
+  and `distance_mi` are both set, `reps` is absent. Every other metric (`reps`,
+  `duration`, `distance`) still carries exactly one of the three fields.
 - `warmup: true` excludes a set from volume/PR analytics.
 - **Session lifecycle:** `session_start` opens; `session_end` closes; an open
   session idle for >3h (configurable) gets an `auto_closed` end stamped at its
@@ -66,7 +70,7 @@ chest_press_db_incline:
   equipment: dumbbell                # optional: barbell | dumbbell | cable | machine | bodyweight
   primary: chest                     # required: one muscle group from the taxonomy below
   secondary: [triceps, shoulders]    # optional: list from the same taxonomy
-  metric: reps                       # optional (default reps): reps | duration | distance
+  metric: reps                       # optional (default reps): reps | duration | distance | duration+distance
   default_rest_s: 120                # optional (default 120): rest-timer length in seconds
   notes: Bench at 30°...             # optional: form cues / setup reminders, shown on the app's Info tab
 ```
@@ -85,7 +89,11 @@ Field reference:
   - `reps` — weight × reps (the default lift shape).
   - `duration` — a held/timed set in seconds (planks, dead hangs); no weight field in the UI.
   - `distance` — a set in miles (loaded carries, sled pushes), same no-weight rule as `duration`.
-  - PRs/progression use e1RM for `reps` exercises, and the best raw duration/distance otherwise.
+  - `duration+distance` — both a duration (seconds) and a distance (miles) on the same set, no
+    weight — native tracking for cardio equipment and activities that report both at once
+    (Peloton rides, runs, rows...). Pace (min/mi) is derived from the two, not stored.
+  - PRs/progression use e1RM for `reps` exercises, and the best raw duration/distance otherwise
+    (for `duration+distance`, distance covered is the score).
 - **`default_rest_s`** (optional, default `120`) — seconds on the rest timer after a set of this
   exercise, when the routine block doesn't override it (see Routines below).
 - **`notes`** (optional) — free text, shown on the app's Info tab for that exercise.

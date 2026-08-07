@@ -13,8 +13,7 @@ from .auth import current_user, make_session_token, verify_login
 from .library import (add_exercise, add_routine_day, exercise_entry_yaml,
                       expand_day, find_day, load_exercises, load_routines,
                       update_exercise, update_routine_day)
-from .models import (CardioEntry, Exercise, MetricEntry, SessionEnd,
-                     SessionStart, SetEntry)
+from .models import Exercise, MetricEntry, SessionEnd, SessionStart, SetEntry
 
 router = APIRouter(prefix="/api")
 
@@ -195,13 +194,6 @@ def log_set(entry: SetEntry, user=Depends(current_user)):
     return {"id": entry.id, "ts": entry.ts, "rest_s": config.DEFAULT_REST_END_BLOCK_S}
 
 
-@router.post("/cardio")
-def log_cardio(entry: CardioEntry, user=Depends(current_user)):
-    storage.append_entry(config.workouts_dir(user["username"]),
-                         entry.model_dump(exclude_none=True))
-    return {"id": entry.id, "ts": entry.ts}
-
-
 # ---------- corrections (edit/delete; git commit is the audit trail) ----------
 
 @router.patch("/entries/{entry_id}")
@@ -313,8 +305,8 @@ def prs(user=Depends(current_user)):
 
 
 @router.get("/analytics/cardio")
-def cardio(activity: Optional[str] = None, user=Depends(current_user)):
-    return analytics.cardio_trends(user["username"], activity)
+def cardio(exercise_id: Optional[str] = None, user=Depends(current_user)):
+    return analytics.cardio_trends(user["username"], exercise_id)
 
 
 # ---------- admin ----------

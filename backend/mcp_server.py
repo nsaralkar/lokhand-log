@@ -79,9 +79,9 @@ def get_prs() -> list[dict]:
 
 
 @mcp.tool()
-def get_cardio_trends(activity: str | None = None) -> list[dict]:
-    """Cardio entries with pace, duration, distance, HR."""
-    return analytics.cardio_trends(USER, activity)
+def get_cardio_trends(exercise_id: str | None = None) -> list[dict]:
+    """Duration+distance sets (Peloton, runs...) with derived pace."""
+    return analytics.cardio_trends(USER, exercise_id)
 
 
 @mcp.tool()
@@ -99,7 +99,7 @@ def get_routines() -> dict:
 
 @mcp.tool()
 def get_raw_entries(start_date: str, end_date: str) -> list[dict]:
-    """Raw JSONL entries (sets, cardio, session markers) between ISO dates —
+    """Raw JSONL entries (sets, session markers) between ISO dates —
     for anything the structured tools don't cover."""
     return iter_entries(config.workouts_dir(USER), start_date, end_date)
 

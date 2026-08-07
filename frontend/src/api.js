@@ -56,6 +56,8 @@ export const exColor = (primary) => MUSCLE_COLORS[primary] || '#7e8894'
 // (weight_lb) or resolved progression-set shape (load_lb). A load of 0 is
 // bodyweight and a negative one is assisted — both print as the number.
 export const fmtSet = (s) => {
+  if (s.duration_s != null && s.distance_mi != null)
+    return `${fmtDuration(s.duration_s)} · ${s.distance_mi} mi`
   if (s.duration_s != null) return fmtDuration(s.duration_s)
   if (s.distance_mi != null) return `${s.distance_mi} mi`
   const load = s.load_lb ?? s.weight_lb ?? s.added_weight_lb
@@ -63,12 +65,17 @@ export const fmtSet = (s) => {
 }
 
 // PR/progression score label + formatting: e1RM for reps-based lifts, the raw
-// best duration/distance for holds and carries.
+// best duration/distance for holds and carries. duration+distance exercises
+// (Peloton, runs...) score and format on distance covered.
 export const scoreLabel = (metric) => (metric && metric !== 'reps' ? 'best' : 'e1RM')
 export const scoreFmt = (value, metric) =>
-  metric === 'duration' ? fmtDuration(value) : metric === 'distance' ? `${value} mi` : value
+  metric === 'duration' ? fmtDuration(value)
+  : (metric === 'distance' || metric === 'duration+distance') ? `${value} mi`
+  : value
 
 // A session's total work for one exercise: tonnage for lifts, total time held
 // or distance covered otherwise. Values format exactly like scores do.
 export const volumeLabel = (metric) =>
-  metric === 'duration' ? 'time' : metric === 'distance' ? 'distance' : 'volume'
+  metric === 'duration' ? 'time'
+  : (metric === 'distance' || metric === 'duration+distance') ? 'distance'
+  : 'volume'
