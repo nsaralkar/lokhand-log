@@ -266,8 +266,11 @@ nav.drawer button.on { color: var(--accent); background: var(--surface-2); }
 .entry .main { font-weight: 500; }
 .entry .main.exname { font-size: 14px; }   /* compact exercise names in This session */
 
-/* Completed sets read as done, not live — grey rather than full-ink white. */
+/* Completed sets read as done, not live — grey rather than full-ink white.
+   No divider lines between them either; the grey tone plus spacing already
+   separates them from the live entry area above. */
 .completed .entry .main, .completed .entry .load { color: var(--muted); }
+.completed .entry, .completed .setedit { border-bottom: none; padding-top: 8px; padding-bottom: 8px; }
 
 /* Editing a completed set: the row becomes a stacked editor — exercise picker,
    then load/quantity/RPE side by side, then the actions. Everything about the
