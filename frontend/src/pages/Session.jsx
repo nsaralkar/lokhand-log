@@ -4,7 +4,6 @@ import { unlockAudio, beep } from '../audio'
 import Confirm from '../components/Confirm'
 import ExercisePicker from '../components/ExercisePicker'
 import ExerciseTrend from '../components/ExerciseTrend'
-import PlanRowEdit from '../components/PlanRowEdit'
 
 export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [exercises, setExercises] = useState([])
@@ -30,7 +29,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [completedCollapsed, setCompletedCollapsed] = useState(true) // hide the logged-set rows
   const [pickerOpen, setPickerOpen] = useState(false) // main exercise-picker modal
   const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned (opens the picker modal)
-  const [planEditIdx, setPlanEditIdx] = useState(null) // plan row open in the edit (choose-exercise/delete) modal
+  const [planEditIdx, setPlanEditIdx] = useState(null) // plan row expanded inline for edit (choose-exercise/delete)
   const [dragIdx, setDragIdx] = useState(null)     // plan row index currently being dragged
   const [sessionNotes, setSessionNotes] = useState('') // freeform notes for the session
   const [notesOpen, setNotesOpen] = useState(false)    // session-notes box expanded
@@ -489,6 +488,23 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
           </div>
           {shownUpcoming.map((p, i) => {
             const idx = session.planIdx + i
+            // Editing a plan row expands it inline — exercise picker + delete —
+            // the same pattern as a Completed set, instead of a modal.
+            if (planEditIdx === idx) {
+              return (
+                <div className="setedit" key={`up-${idx}`} ref={(el) => (rowRefs.current[idx] = el)}>
+                  <button className="expicker-trigger" onClick={() => setSwapIdx(idx)}>
+                    <span className="exdot" style={{ background: colorOf(p.exercise_id) }} />
+                    {nameOf(p.exercise_id) || <span className="muted">choose exercise…</span>}
+                  </button>
+                  <div className="row">
+                    <button className="ghost" onClick={() => setPlanEditIdx(null)}>Cancel</button>
+                    <button className="ghost danger"
+                      onClick={() => { removePlanRow(idx); setPlanEditIdx(null) }}>Delete</button>
+                  </div>
+                </div>
+              )
+            }
             return (
               <div className={`plan-row ${i === 0 ? 'current' : ''} ${dragIdx === idx ? 'dragging' : ''}`}
                 key={`up-${idx}`} ref={(el) => (rowRefs.current[idx] = el)}>
@@ -599,16 +615,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
       <ExercisePicker open={pickerOpen} exercises={exercises} value={exText}
         onSelect={(name) => { setExText(name); setPickerOpen(false) }}
         onClose={() => setPickerOpen(false)} />
-
-      {/* Rendered before the swap picker below: two same-z-index modal-scrims
-          stack by DOM order, and the picker needs to land on top when the
-          "choose exercise" tap inside this modal opens it. */}
-      <PlanRowEdit open={planEditIdx != null}
-        name={planEditIdx != null ? nameOf(plan[planEditIdx]?.exercise_id) : ''}
-        color={planEditIdx != null ? colorOf(plan[planEditIdx]?.exercise_id) : ''}
-        onPick={() => setSwapIdx(planEditIdx)}
-        onDelete={() => { removePlanRow(planEditIdx); setPlanEditIdx(null) }}
-        onClose={() => setPlanEditIdx(null)} />
 
       <ExercisePicker open={swapIdx != null} exercises={exercises}
         value={swapIdx != null ? nameOf(plan[swapIdx]?.exercise_id) : ''}
