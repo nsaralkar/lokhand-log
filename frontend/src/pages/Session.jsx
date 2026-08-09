@@ -5,6 +5,20 @@ import Confirm from '../components/Confirm'
 import ExercisePicker from '../components/ExercisePicker'
 import ExerciseTrend from '../components/ExerciseTrend'
 
+// Preview a plan-row drag without committing it: the same array with the row
+// identified by `key` moved to `toIdx`. Used to render/measure while a drag
+// is in flight so `session` (and its localStorage write) stays untouched
+// until drop — see startRowDrag.
+function movePreview(planArr, key, toIdx) {
+  if (key == null) return planArr
+  const fromIdx = planArr.findIndex((p) => p._key === key)
+  if (fromIdx === -1 || fromIdx === toIdx) return planArr
+  const copy = planArr.slice()
+  const [item] = copy.splice(fromIdx, 1)
+  copy.splice(toIdx, 0, item)
+  return copy
+}
+
 export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [exercises, setExercises] = useState([])
   const [exErr, setExErr] = useState('')
@@ -169,8 +183,9 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   // dragged; that one tracks the pointer directly via the floating ghost.
   //
   // A fast drag can trigger this effect again before the previous pass's
-  // slide has finished (each pointer-crossing reorders the plan and re-runs
-  // it). Two things guard against that overlap turning into jitter:
+  // slide has finished (each pointer-crossing updates dragIdx and re-runs
+  // it, against the local preview — see `plan` below). Two things guard
+  // against that overlap turning into jitter:
   // - every node is snapped to transform:none right before it's measured, so
   //   getBoundingClientRect always reads a settled natural position instead
   //   of whatever point a still-running CSS transition happened to be at
@@ -325,31 +340,43 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   }
 
   // Drag-to-reorder via Pointer Events (works for touch and mouse alike, unlike
-  // HTML5 drag-and-drop). A press only becomes a drag after a 200ms hold on the
-  // handle, so a quick tap doesn't accidentally grab the row. Once armed, the
-  // grabbed row turns into a floating ghost that tracks the pointer directly
-  // (see the render below); the row's own slot in the list becomes an empty
-  // placeholder, which reorderPlan moves whenever the pointer crosses into a
-  // neighboring row's bounds. The FLIP effect above handles the neighbors'
-  // slide; the ghost's own position is driven imperatively here for smoothness
-  // (updating it via React state on every pointermove would be needlessly
-  // re-rendering the whole row list at pointer-move frequency).
+  // HTML5 drag-and-drop). A press only becomes a drag after a 200ms hold on
+  // the handle, so a quick tap doesn't accidentally grab the row. The
+  // pointer's latest position is tracked the whole time (not just once
+  // dragging), so a finger that drifts during that hold doesn't leave the
+  // ghost's grab point stale the moment it mounts.
+  //
+  // Once armed, the grabbed row turns into a floating ghost that tracks the
+  // pointer directly (see the render below); the row's own slot in the list
+  // becomes an empty placeholder. Nothing is committed to `session` while
+  // dragging, though — dragIdx only drives a local preview (the `plan` above)
+  // that the ghost/placeholder/FLIP render from; reorderPlan runs exactly
+  // once, on drop. Committing on every pointer-crossing (the previous
+  // approach) meant every crossing also fired the session-persistence
+  // effect's synchronous localStorage write and a forced layout, competing
+  // with the FLIP animation for the same frames — the actual source of the
+  // stutter/jitter on a fast drag, separate from the transform-math bug.
   function startRowDrag(e, idx) {
     e.preventDefault()
-    let current = idx
-    let dragging = false
+    const downY = e.clientY   // original touch point — the grab offset within
+    let current = idx         // the row is fixed relative to this, not to
+    let dragging = false      // wherever the finger ends up by arm time
+    let lastY = downY
     const armTimer = setTimeout(() => {
       const rect = rowRefs.current[idx]?.getBoundingClientRect()
       if (!rect) return
       dragging = true
+      const grabDY = downY - rect.top
       dragMeta.current = {
-        grabDY: e.clientY - rect.top, left: rect.left, width: rect.width,
-        top: rect.top, item: plan[idx],
+        grabDY, left: rect.left, width: rect.width,
+        top: lastY - grabDY,   // mount under the finger's current spot, not
+        item: plan[idx],       // the row's original one, in case it drifted
       }
       setDragIdx(idx)
     }, 200)
 
     const onMove = (ev) => {
+      lastY = ev.clientY
       if (!dragging) return
       if (floatRef.current) floatRef.current.style.top = `${ev.clientY - dragMeta.current.grabDY}px`
       for (const [key, el] of Object.entries(rowRefs.current)) {
@@ -358,7 +385,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         if (target === current) continue
         const r = el.getBoundingClientRect()
         if (ev.clientY >= r.top && ev.clientY <= r.bottom) {
-          reorderPlan(current, target)
           current = target
           setDragIdx(target)
           break
@@ -374,6 +400,10 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         if (floatRef.current && dragMeta.current) {
           flipRects.current[dragMeta.current.item._key] = floatRef.current.getBoundingClientRect()
         }
+        // Commit the reorder exactly once, from the row's real (undragged)
+        // index to wherever the preview ended up.
+        const fromIdx = (session.plan || []).findIndex((p) => p._key === dragMeta.current?.item?._key)
+        if (fromIdx !== -1 && fromIdx !== current) reorderPlan(fromIdx, current)
         dragMeta.current = null
         setDragIdx(null)
       }
@@ -451,7 +481,11 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     )
   }
 
-  const plan = session.plan || []
+  const realPlan = session.plan || []
+  // While a row is being dragged, render/measure a local preview (the real
+  // plan reordered to wherever dragIdx currently is) instead of committing —
+  // see startRowDrag for why.
+  const plan = dragIdx != null ? movePreview(realPlan, dragMeta.current?.item?._key, dragIdx) : realPlan
   const upcoming = plan.slice(session.planIdx)
   // The current/next set always shows; the chevron reveals the ones below it.
   const shownUpcoming = planCollapsed ? upcoming.slice(0, 1) : upcoming
