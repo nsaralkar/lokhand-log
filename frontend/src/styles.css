@@ -40,6 +40,9 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 button.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
 button.big { width: 100%; min-height: 60px; font-size: 20px; font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.05em; }
 button.ghost { background: transparent; }
+/* A .big button that's the sole direct child of a .card already gets its
+   outline from the card -- its own border would just double it up. */
+.card > button.big { border: none; }
 
 input, select, textarea {
   font-family: var(--font-body); font-size: 16px; min-height: 48px;
@@ -120,7 +123,7 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 
 /* Exercise name header on the History / Info subtabs */
 .exhead { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; font-size: 18px; }
-.exhead .exdot { margin-right: 0; }
+.exhead .exdot, .section-toggle .exdot { margin-right: 0; }
 
 /* Home hub: one full-width launcher button per page */
 .home-links { display: flex; flex-direction: column; gap: 10px; }
