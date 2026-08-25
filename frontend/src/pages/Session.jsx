@@ -279,13 +279,14 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     setErr('')
     unlockAudio()  // user gesture — lets the rest timer beep at zero
     try {
+      const num = (v) => (v === '' || v == null ? null : Number(v))
       const body = {
         session_id: session.session_id, exercise_id: exerciseId,
-        rpe: rpe || undefined,
+        rpe: num(rpe) || undefined,
       }
-      body[kindOf(metric)] = qty
-      if (isCombo(metric)) body.distance_mi = qty2
-      if (showWeight) body.weight_lb = weight
+      body[kindOf(metric)] = num(qty)
+      if (isCombo(metric)) body.distance_mi = num(qty2)
+      if (showWeight) body.weight_lb = num(weight)
       const r = await post('/sets', body)
       setLogged((l) => [{ ...body, id: r.id }, ...l])  // optimistic; reconciled below
       refreshLogged(session.session_id)
@@ -519,25 +520,25 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
               {showWeight && (
                 <div className="field">
                   <input className="numval" inputMode="decimal" value={weight ?? ''}
-                    onChange={(e) => setWeight(e.target.value === '' ? null : Number(e.target.value))} />
+                    onChange={(e) => setWeight(e.target.value)} />
                   <span className="unit">{WEIGHT_UNIT}</span>
                 </div>
               )}
               <div className="field">
                 <input className="numval" inputMode={metric === 'distance' ? 'decimal' : 'numeric'} value={qty ?? ''}
-                  onChange={(e) => setQty(e.target.value === '' ? null : Number(e.target.value))} />
+                  onChange={(e) => setQty(e.target.value)} />
                 <span className="unit">{qtyUnit}</span>
               </div>
               {isCombo(metric) && (
                 <div className="field">
                   <input className="numval" inputMode="decimal" value={qty2 ?? ''}
-                    onChange={(e) => setQty2(e.target.value === '' ? null : Number(e.target.value))} />
+                    onChange={(e) => setQty2(e.target.value)} />
                   <span className="unit">mi</span>
                 </div>
               )}
               <div className="field">
                 <input className="numval" inputMode="decimal" value={rpe ?? ''}
-                  onChange={(e) => setRpe(e.target.value === '' ? null : Number(e.target.value))} />
+                  onChange={(e) => setRpe(e.target.value)} />
                 <span className="unit">rpe</span>
               </div>
             </div>
