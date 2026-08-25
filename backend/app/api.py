@@ -13,7 +13,7 @@ from .auth import current_user, make_session_token, verify_login
 from .library import (add_exercise, add_routine_day, exercise_entry_yaml,
                       expand_day, find_day, load_exercises, load_routines,
                       update_exercise, update_routine_day)
-from .models import Exercise, MetricEntry, SessionEnd, SessionStart, SetEntry
+from .models import Exercise, MetricEntry, NoteEntry, SessionEnd, SessionStart, SetEntry
 
 router = APIRouter(prefix="/api")
 
@@ -192,6 +192,15 @@ def log_set(entry: SetEntry, user=Depends(current_user)):
     # Off-plan / empty-workout fallback: the end-of-block default. In-plan sets
     # carry their own positional rest_s (from expand_day); the client prefers it.
     return {"id": entry.id, "ts": entry.ts, "rest_s": config.DEFAULT_REST_END_BLOCK_S}
+
+
+@router.post("/notes")
+def log_note(entry: NoteEntry, user=Depends(current_user)):
+    if not entry.text.strip():
+        raise HTTPException(400, "note text is required")
+    storage.append_entry(config.workouts_dir(user["username"]),
+                         entry.model_dump(exclude_none=True))
+    return {"id": entry.id, "ts": entry.ts}
 
 
 # ---------- corrections (edit/delete; git commit is the audit trail) ----------

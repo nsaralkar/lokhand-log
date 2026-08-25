@@ -295,6 +295,11 @@ nav.drawer button.on { color: var(--accent); background: var(--surface-2); }
 
 /* Exercise notes (Info subtab): form cues from the library */
 .exnotes { white-space: pre-wrap; line-height: 1.5; font-size: 15px; margin: 6px 0 0; }
+
+/* A posted session note, interleaved with sets in Completed/History: text
+   wraps under its own edit button rather than pushing it off-screen. */
+.note-entry .note-text { flex: 1; min-width: 0; white-space: pre-wrap; font-style: italic;
+  font-weight: 400; line-height: 1.4; }
 .entry .meta { color: var(--muted); font-size: 13px; }
 .entry .load { font-family: var(--font-display); font-size: 22px; font-weight: 600; white-space: nowrap; }
 

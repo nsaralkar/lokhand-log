@@ -37,7 +37,9 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [editId, setEditId] = useState(null)   // logged set being edited
   const [editVal, setEditVal] = useState({ exercise_id: '', weight: '', kind: 'reps', qty: '', qty2: '', rpe: '' })
   const [editPick, setEditPick] = useState(false)  // exercise picker for the set being edited
-  const [confirmId, setConfirmId] = useState(null) // set pending delete
+  const [editNoteId, setEditNoteId] = useState(null) // logged note being edited
+  const [editNoteText, setEditNoteText] = useState('')
+  const [confirmId, setConfirmId] = useState(null) // entry (set or note) pending delete
   const [confirmFinish, setConfirmFinish] = useState(false) // finish-workout pending confirmation
   const [planCollapsed, setPlanCollapsed] = useState(true) // hide the rows below the current one
   const [completedCollapsed, setCompletedCollapsed] = useState(true) // hide the logged-set rows
@@ -45,7 +47,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned (opens the picker modal)
   const [planEditIdx, setPlanEditIdx] = useState(null) // plan row expanded inline for edit (choose-exercise/delete)
   const [dragIdx, setDragIdx] = useState(null)     // plan row index currently being dragged
-  const [sessionNotes, setSessionNotes] = useState('') // freeform notes for the session
+  const [sessionNotes, setSessionNotes] = useState('') // draft text in the note composer
   const [notesOpen, setNotesOpen] = useState(false)    // session-notes box expanded
   const [err, setErr] = useState('')
   const wakeLock = useRef(null)
@@ -85,9 +87,10 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
 
   // The Completed list is the server's truth, not a client-side copy — so it
   // always reflects the actual file (incl. edits made directly to the JSONL).
+  // Sets and notes interleave in the order they were logged/posted.
   const refreshLogged = (sid) =>
     get(`/sessions/${sid}`)
-      .then((s) => setLogged((s.entries || []).filter((e) => e.type === 'set').reverse()))
+      .then((s) => setLogged((s.entries || []).filter((e) => e.type === 'set' || e.type === 'note').reverse()))
       .catch(() => {})
 
   // Resume a workout left running when we last unmounted (tab switch / reload).
@@ -456,17 +459,46 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     } catch (e) { setErr(e.message) }
   }
 
-  async function deleteSet(id) {
+  async function deleteEntry(id) {
     try {
       await del(`/entries/${id}`)
       if (editId === id) setEditId(null)
+      if (editNoteId === id) setEditNoteId(null)
       refreshLogged(session.session_id)
     } catch (e) { setErr(e.message) }
     setConfirmId(null)
   }
 
+  // Posts the composer's text as its own note entry immediately — chat-style,
+  // not accumulated into one blob for session_end. Shows up in Completed (and
+  // History) interleaved with sets in the order it landed.
+  async function postNote() {
+    const text = sessionNotes.trim()
+    if (!text) return
+    try {
+      await post('/notes', { session_id: session.session_id, text })
+      setSessionNotes('')
+      refreshLogged(session.session_id)
+    } catch (e) { setErr(e.message) }
+  }
+
+  function startEditNote(n) {
+    setEditNoteId(n.id)
+    setEditNoteText(n.text || '')
+  }
+
+  async function saveEditNote() {
+    const text = editNoteText.trim()
+    if (!text) return
+    try {
+      await patch(`/entries/${editNoteId}`, { text })
+      setEditNoteId(null)
+      refreshLogged(session.session_id)
+    } catch (e) { setErr(e.message) }
+  }
+
   async function endSession() {
-    await post(`/sessions/${session.session_id}/end`, { notes: sessionNotes.trim() || undefined })
+    await post(`/sessions/${session.session_id}/end`, {})
     setSession(null); setTimer(null); setExText(''); setLogged([])
     setSessionNotes(''); setNotesOpen(false); setConfirmFinish(false)
   }
@@ -490,6 +522,8 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const upcoming = plan.slice(session.planIdx)
   // The current/next set always shows; the chevron reveals the ones below it.
   const shownUpcoming = planCollapsed ? upcoming.slice(0, 1) : upcoming
+  const nSets = logged.reduce((n, l) => n + (l.type === 'set' ? 1 : 0), 0)
+  const nNotes = logged.length - nSets
   // Rest countdown (the effect clears the timer at zero, so this stays >= 0).
   const remaining = timer ? Math.max(0, timer.target - Math.floor((now - timer.startedAt) / 1000)) : 0
   const cmm = Math.floor(remaining / 60), css = String(remaining % 60).padStart(2, '0')
@@ -689,11 +723,35 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
             style={{ marginBottom: completedCollapsed ? 0 : 6 }}
             onClick={() => setCompletedCollapsed((c) => !c)}>
             <span className={`chev ${completedCollapsed ? '' : 'open'}`}>▸</span>
-            Completed <span className="muted count-hint">· {logged.length} set{logged.length === 1 ? '' : 's'}</span>
+            Completed <span className="muted count-hint">
+              · {nSets} set{nSets === 1 ? '' : 's'}{nNotes ? `, ${nNotes} note${nNotes === 1 ? '' : 's'}` : ''}
+            </span>
           </button>
-          {/* A logged set is fully editable — exercise included. The editor takes
-              over the row so all four fields fit a 360px screen in one column. */}
-          {!completedCollapsed && logged.map((l) => editId === l.id ? (
+          {/* Sets and notes interleave in logged order. A logged set is fully
+              editable — exercise included — with the editor taking over the row
+              so all four fields fit a 360px screen in one column; a note is
+              just its text with an inline edit. */}
+          {!completedCollapsed && logged.map((l) => l.type === 'note' ? (
+            editNoteId === l.id ? (
+              <div className="setedit" key={l.id}>
+                <textarea className="notes-area no-autoselect" rows={3} value={editNoteText}
+                  onChange={(e) => setEditNoteText(e.target.value)} />
+                <div className="row">
+                  <button className="primary" disabled={!editNoteText.trim()} onClick={saveEditNote}>Save</button>
+                  <button className="ghost" onClick={() => setEditNoteId(null)}>Cancel</button>
+                  <button className="ghost danger" onClick={() => setConfirmId(l.id)}>Delete</button>
+                </div>
+              </div>
+            ) : (
+              <div className="entry note-entry" key={l.id}>
+                <div className="main note-text">{l.text}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
+                    onClick={() => startEditNote(l)}>✎</button>
+                </div>
+              </div>
+            )
+          ) : editId === l.id ? (
             <div className="setedit" key={l.id}>
               <button className="expicker-trigger" onClick={() => setEditPick(true)}>
                 <span className="exdot" style={{ background: colorOf(editVal.exercise_id) }} />
@@ -755,9 +813,13 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
           {!notesOpen && sessionNotes.trim() && <span className="notes-dot" />}
         </button>
         {notesOpen && (
-          <textarea className="notes-area no-autoselect" rows={4} value={sessionNotes}
-            placeholder="How did the session go? Energy, aches, PRs…"
-            onChange={(e) => setSessionNotes(e.target.value)} />
+          <>
+            <textarea className="notes-area no-autoselect" rows={4} value={sessionNotes}
+              placeholder="How did that go? Energy, aches, PRs…"
+              onChange={(e) => setSessionNotes(e.target.value)} />
+            <button className="primary" style={{ marginTop: 8 }}
+              disabled={!sessionNotes.trim()} onClick={postNote}>Post</button>
+          </>
         )}
       </div>
 
@@ -776,8 +838,8 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         onSelect={editExercise} onClose={() => setEditPick(false)} />
 
       <Confirm open={confirmId != null}
-        message="Delete this set? git history keeps the audit trail."
-        onConfirm={() => deleteSet(confirmId)} onCancel={() => setConfirmId(null)} />
+        message="Delete this entry? git history keeps the audit trail."
+        onConfirm={() => deleteEntry(confirmId)} onCancel={() => setConfirmId(null)} />
 
       <Confirm open={confirmFinish}
         message="Finish this workout? You won't be able to log more sets to it."

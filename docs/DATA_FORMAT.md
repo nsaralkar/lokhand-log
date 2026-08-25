@@ -23,6 +23,7 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
 {"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"chest_press_db_incline","weight_lb":100,"reps":12,"rpe":8,"notes":"felt strong"}
 {"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"pullup","weight_lb":25.0,"reps":6}
 {"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"peloton_cycling","duration_s":1860,"distance_mi":9.4}
+{"id":"...","ts":"...","type":"note","session_id":"9f8e7d6c5b4a","text":"left shoulder felt tight on the incline press"}
 {"id":"...","ts":"...","type":"session_end","session_id":"9f8e7d6c5b4a"}
 ```
 
@@ -46,6 +47,11 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
 - **Session lifecycle:** `session_start` opens; `session_end` closes; an open
   session idle for >3h (configurable) gets an `auto_closed` end stamped at its
   last activity.
+- **`note` entries are posted mid-session, one line per comment** — a "How did
+  it feel" chat, not a single blob. They interleave with `set` entries in
+  session order wherever the session is displayed. (Pre-note-feature sessions
+  may still carry a single freeform comment on `session_end.notes` instead —
+  that's rendered as-is, not migrated.)
 
 ## Metrics (`users/<name>/metrics/YYYY-MM.jsonl`)
 

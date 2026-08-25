@@ -91,6 +91,15 @@ class SessionEnd(BaseEntry):
     auto_closed: bool = False
 
 
+class NoteEntry(BaseEntry):
+    """A freeform comment posted mid-session, chat-style — its own timestamped
+    line rather than one blob accumulated until session_end. Interleaves with
+    `set` entries in session order (Completed dropdown, History)."""
+    type: Literal["note"] = "note"
+    session_id: str
+    text: str
+
+
 class MetricEntry(BaseEntry):
     """Body metrics: weight (lb), dimensions (in), and future wearable data.
     `metric` is freeform-but-conventional; see data-example/shared for the list."""
@@ -104,6 +113,7 @@ ENTRY_TYPES = {
     "set": SetEntry,
     "session_start": SessionStart,
     "session_end": SessionEnd,
+    "note": NoteEntry,
     "metric": MetricEntry,
 }
 

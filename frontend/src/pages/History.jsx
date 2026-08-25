@@ -27,11 +27,16 @@ export default function History({ openSession: deepLink, onOpened, menuBtn, work
   }
 
   async function saveEdit() {
-    const p = editing.kind === 'combo'
-      ? { duration_s: Number(editing.qty), distance_mi: Number(editing.qty2) }
-      : { [editing.kind]: Number(editing.qty) }
-    if (editing.weight != null && editing.weight !== '')
-      p.weight_lb = Number(editing.weight)
+    let p
+    if (editing.kind === 'note') {
+      p = { text: editing.text.trim() }
+    } else {
+      p = editing.kind === 'combo'
+        ? { duration_s: Number(editing.qty), distance_mi: Number(editing.qty2) }
+        : { [editing.kind]: Number(editing.qty) }
+      if (editing.weight != null && editing.weight !== '')
+        p.weight_lb = Number(editing.weight)
+    }
     await patch(`/entries/${editing.id}`, p)
     setEditing(null)
     openSession(open.session_id)
@@ -65,7 +70,7 @@ export default function History({ openSession: deepLink, onOpened, menuBtn, work
   }
 
   if (open) {
-    const sets = open.entries.filter((e) => e.type === 'set')
+    const items = open.entries.filter((e) => e.type === 'set' || e.type === 'note')
     const start = open.entries.find((e) => e.type === 'session_start')
     const end = open.entries.find((e) => e.type === 'session_end')
     return (
@@ -112,7 +117,28 @@ export default function History({ openSession: deepLink, onOpened, menuBtn, work
         )}
 
         <div className="card">
-          {sets.map((e) => (
+          {items.map((e) => e.type === 'note' ? (
+            <div className="entry note-entry" key={e.id}>
+              {editing?.id === e.id ? (
+                <>
+                  <textarea rows={2} className="note-text" style={{ background: 'none', border: 'none', padding: 0 }}
+                    value={editing.text} onChange={(ev) => setEditing({ ...editing, text: ev.target.value })} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
+                      onClick={saveEdit}>✓</button>
+                    <button className="ghost danger" style={{ minHeight: 40, padding: '0 10px' }}
+                      onClick={() => setConfirmId(e.id)}>✕</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="note-text">{e.text}</div>
+                  <button className="ghost" style={{ minHeight: 40, padding: '0 10px' }}
+                    onClick={() => setEditing({ id: e.id, kind: 'note', text: e.text })}>✎</button>
+                </>
+              )}
+            </div>
+          ) : (
             <div className="entry" key={e.id}>
               <div>
                 <div className="main">

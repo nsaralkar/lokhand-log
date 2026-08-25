@@ -43,6 +43,26 @@ def test_edit_and_delete(client):
     assert client.delete(f"/api/entries/{eid}").json()["ok"]
 
 
+def test_notes_interleave_with_sets(client):
+    sid = client.post("/api/sessions/start", json={}).json()["session_id"]
+    client.post("/api/sets", json={
+        "session_id": sid, "exercise_id": "goblet_squat_db", "weight_lb": 55, "reps": 10})
+    nid = client.post("/api/notes", json={"session_id": sid, "text": "knee felt off"}).json()["id"]
+    client.post("/api/sets", json={
+        "session_id": sid, "exercise_id": "goblet_squat_db", "weight_lb": 55, "reps": 8})
+
+    types = [e["type"] for e in client.get(f"/api/sessions/{sid}").json()["entries"]]
+    assert types == ["session_start", "set", "note", "set"]
+
+    assert client.post("/api/notes", json={"session_id": sid, "text": "  "}).status_code == 400
+
+    edited = client.patch(f"/api/entries/{nid}", json={"text": "knee felt fine after warmup"}).json()
+    assert edited["text"] == "knee felt fine after warmup"
+    assert client.delete(f"/api/entries/{nid}").json()["ok"]
+    types = [e["type"] for e in client.get(f"/api/sessions/{sid}").json()["entries"]]
+    assert types == ["session_start", "set", "set"]
+
+
 def test_volume_and_metrics(client):
     assert client.get("/api/analytics/volume").status_code == 200
     client.post("/api/metrics", json={"metric": "bicep_l", "value": 14.0, "unit": "in"})
