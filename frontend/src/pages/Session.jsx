@@ -5,6 +5,9 @@ import Confirm from '../components/Confirm'
 import ExercisePicker from '../components/ExercisePicker'
 import ExerciseTrend from '../components/ExerciseTrend'
 
+// How many past sessions the History subtab shows before you expand it.
+const HIST_PREVIEW = 3
+
 // Preview a plan-row drag without committing it: the same array with the row
 // identified by `key` moved to `toIdx`. Used to render/measure while a drag
 // is in flight so `session` (and its localStorage write) stays untouched
@@ -43,6 +46,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [confirmFinish, setConfirmFinish] = useState(false) // finish-workout pending confirmation
   const [planCollapsed, setPlanCollapsed] = useState(true) // hide the rows below the current one
   const [completedCollapsed, setCompletedCollapsed] = useState(true) // hide the logged-set rows
+  const [histCollapsed, setHistCollapsed] = useState(true) // History subtab: show only the last HIST_PREVIEW sessions
   const [pickerOpen, setPickerOpen] = useState(false) // main exercise-picker modal
   const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned (opens the picker modal)
   const [planEditIdx, setPlanEditIdx] = useState(null) // plan row expanded inline for edit (choose-exercise/delete)
@@ -144,6 +148,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   // We populate the last set verbatim (never auto-increment the weight).
   useEffect(() => {
     setProg([])
+    setHistCollapsed(true)
     if (!exerciseId) return
     get(`/analytics/exercises/${exerciseId}/progression`)
       .then((p) => {
@@ -234,7 +239,9 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     flipRects.current = next
   }, [session?.plan, dragIdx])
 
-  const history = useMemo(() => prog.slice(-3).reverse(), [prog])
+  // Newest-first, and the collapsed view is just the head of it.
+  const history = useMemo(() => prog.slice().reverse(), [prog])
+  const shownHistory = histCollapsed ? history.slice(0, HIST_PREVIEW) : history
 
   // Keep the screen awake mid-session so the rest timer stays visible.
   useEffect(() => {
@@ -608,7 +615,16 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
                   : (
                     <>
                       <ExerciseTrend sessions={prog} metric={metric} />
-                      {history.map((s) => (
+                      {/* Everything's here, but only the last few sessions show
+                          until you ask for the rest. */}
+                      {history.length > HIST_PREVIEW && (
+                        <button className="section-toggle" aria-expanded={!histCollapsed}
+                          onClick={() => setHistCollapsed((c) => !c)}>
+                          <span className={`chev ${histCollapsed ? '' : 'open'}`}>▸</span>
+                          History <span className="muted count-hint">· {history.length} sessions</span>
+                        </button>
+                      )}
+                      {shownHistory.map((s) => (
                         <div className="entry" key={s.session_id}>
                           <div>
                             <button className="linkdate" onClick={() => navigate('history', { session: s.session_id })}>
