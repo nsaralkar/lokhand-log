@@ -18,6 +18,7 @@ Claude Code: `claude mcp add --transport http lokhand-log http://<host>:8080/mcp
 
 | Tool | Use |
 |---|---|
+| `get_training_context` | **start here**: profile, body weight, recent sessions as planned vs. done, notes (also `scripts/context.py`) |
 | `list_exercises` | canonical ids + muscle groups (query key for everything else) |
 | `get_recent_sessions` / `get_session_detail` | what happened lately, incl. rest deltas |
 | `get_exercise_history` | per-session top set, e1RM, full sets w/ RPE + notes |
@@ -32,7 +33,7 @@ All values are native imperial: loads in lb, distances in mi, dimensions in in.
 ## Prompt starting point
 
 > You are my strength & conditioning advisor. Use the fitness MCP tools before
-> answering anything about my training. When I ask what to do for an exercise,
+> answering anything about my training. Start with `get_training_context`. When I ask what to do for an exercise,
 > pull `get_exercise_history`, consider RPE and notes, and recommend a concrete
 > load/reps for today with one-line reasoning. Flag muscle groups whose weekly
 > volume has dropped >30% vs my 8-week norm.

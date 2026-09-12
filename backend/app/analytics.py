@@ -6,12 +6,12 @@ that's the LLM's job, with these as its inputs.
 """
 from __future__ import annotations
 
-from collections import defaultdict
-from datetime import datetime
+from collections import Counter, defaultdict
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from . import config
-from .library import load_exercises
+from .library import expand_day, load_exercises
 from .storage import iter_entries
 
 
@@ -216,3 +216,81 @@ def cardio_trends(username: str, exercise_id: Optional[str] = None) -> list[dict
                     "duration_s": dur, "distance_mi": dist,
                     "pace_min_per_mi": round(pace, 2) if pace else None})
     return out
+
+
+def _fmt_set(row: dict) -> str:
+    """One set as a compact string for LLM context, e.g. `33x10 rpe9.5 (note)`."""
+    parts = ["warmup"] if row.get("warmup") else []
+    load = _set_load_lb(row)
+    if row.get("reps") is not None:
+        parts.append(f"{load:g}x{row['reps']}")
+    elif load:
+        parts.append(f"{load:g}lb")
+    if row.get("duration_s") is not None:
+        m, sec = divmod(int(row["duration_s"]), 60)
+        parts.append(f"{m}:{sec:02d}")
+    if row.get("distance_mi") is not None:
+        parts.append(f"{row['distance_mi']:g}mi")
+    if row.get("rpe") is not None:
+        parts.append(f"rpe{row['rpe']:g}")
+    out = " ".join(parts)
+    return f"{out} ({row['notes']})" if row.get("notes") else out
+
+
+def training_context(username: str, days: int = 14) -> dict:
+    """Everything needed to program the next workout, in one read: the athlete
+    profile (users/<name>/profile.md), recent body weight, and each session from
+    the last `days` days as planned (the routine day snapshotted at start, notes
+    included) vs. done (one line of sets per exercise), plus in-session notes.
+    Sessions logged before snapshots existed carry only routine/day names."""
+    start = (date.today() - timedelta(days=days)).isoformat()
+    sessions: dict[str, dict] = {}
+    for r in iter_entries(config.workouts_dir(username), start):
+        sid = r.get("session_id")
+        if r["type"] == "session_start":
+            sessions[sid] = {"session_id": sid, "date": r["ts"][:10], "name": r.get("name"),
+                             **{k: r[k] for k in ("routine", "day", "planned") if r.get(k)},
+                             "done": {}, "notes": [], "_start": r["ts"], "_last": r["ts"],
+                             "_open": True}
+            continue
+        s = sessions.get(sid)
+        if s is None:
+            continue   # started before the window
+        if r["type"] == "set":
+            s["done"].setdefault(r["exercise_id"], []).append(_fmt_set(r))
+        elif r["type"] == "note":
+            s["notes"].append(r["text"])
+        elif r["type"] == "session_end":
+            s["_open"] = False
+            if r.get("notes"):
+                s["notes"].append(r["notes"])
+            continue   # a late manual end would inflate the duration
+        s["_last"] = r["ts"]
+
+    out = []
+    for s in sessions.values():
+        mins = (datetime.fromisoformat(s.pop("_last"))
+                - datetime.fromisoformat(s.pop("_start"))).total_seconds() / 60
+        s["duration_min"] = round(mins)
+        if s.pop("_open"):
+            s["open"] = True
+        if not s["notes"]:
+            del s["notes"]
+        if s.get("planned"):
+            planned = Counter(p["exercise_id"] for p in expand_day(s["planned"]))
+            done = {ex: sum(1 for x in sets if not x.startswith("warmup"))
+                    for ex, sets in s["done"].items()}
+            order = list(planned) + [ex for ex in done if ex not in planned]
+            diff = {ex: f"{done.get(ex, 0)}/{planned.get(ex, 0)} sets" for ex in order
+                    if done.get(ex, 0) != planned.get(ex, 0)}
+            if diff:
+                s["plan_vs_done"] = diff
+        s["done"] = {ex: ", ".join(sets) for ex, sets in s["done"].items()}
+        out.append(s)
+
+    profile = config.user_dir(username) / "profile.md"
+    return {"as_of": date.today().isoformat(),
+            "profile": profile.read_text() if profile.exists() else None,
+            "body_weight_lb": {m["date"]: m["value"]
+                               for m in metric_series(username, "weight")[-5:]},
+            "sessions": out}

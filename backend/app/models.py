@@ -83,6 +83,7 @@ class SessionStart(BaseEntry):
     name: Optional[str] = None             # e.g. the routine day's name
     routine: Optional[str] = None          # routine slug this session came from
     day: Optional[str] = None              # which day within the routine
+    planned: Optional[dict] = None         # snapshot of that day (blocks, notes) at start
 
 
 class SessionEnd(BaseEntry):

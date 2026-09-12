@@ -246,3 +246,31 @@ def test_routine_preview(client):
     assert client.get("/api/routines/dumbbell_split/preview",
                       params={"day": "Nonexistent Day"}).status_code == 404
     assert client.get("/api/routines/nope/preview", params={"day": "x"}).status_code == 404
+
+
+def test_session_start_snapshots_planned_day(client):
+    from app import analytics
+    r = client.post("/api/sessions/start", json={"routine": "dumbbell_split", "day": "Push Day"}).json()
+    sid = r["session_id"]
+    start = client.get(f"/api/sessions/{sid}").json()["entries"][0]
+    assert start["planned"]["name"] == "Push Day"
+    assert start["planned"]["blocks"][0]["exercises"] == ["chest_press_db_incline"]
+
+    # Modified live: one press set, finisher swapped for squats.
+    client.post("/api/sets", json={"session_id": sid, "exercise_id": "chest_press_db_incline",
+                                   "weight_lb": 50, "reps": 10, "rpe": 8})
+    client.post("/api/sets", json={"session_id": sid, "exercise_id": "goblet_squat_db",
+                                   "weight_lb": 55, "reps": 8})
+    client.post("/api/notes", json={"session_id": sid, "text": "swapped finisher for squats"})
+
+    s = next(x for x in analytics.training_context("demo", days=1)["sessions"]
+             if x["session_id"] == sid)
+    assert s["planned"]["name"] == "Push Day" and s["open"]
+    assert s["done"]["chest_press_db_incline"] == "50x10 rpe8"
+    assert s["plan_vs_done"] == {"chest_press_db_incline": "1/3 sets", "lateral_raise_db": "0/3 sets",
+                                 "pullup": "0/3 sets", "goblet_squat_db": "1/0 sets"}
+    assert s["notes"] == ["swapped finisher for squats"]
+
+    # Ad-hoc sessions have no plan to snapshot.
+    sid2 = client.post("/api/sessions/start", json={}).json()["session_id"]
+    assert "planned" not in client.get(f"/api/sessions/{sid2}").json()["entries"][0]

@@ -670,6 +670,8 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
               <span className="muted count-hint">+{upcoming.length - 1} more</span>
             )}
           </div>
+          {/* The routine day's notes — why it was programmed this way. */}
+          {!planCollapsed && session.notes && <p className="muted plan-notes">{session.notes}</p>}
           {shownUpcoming.map((p, i) => {
             const idx = session.planIdx + i
             const rowRef = (el) => { rowRefs.current[idx] = el; keyedRowRefs.current[p._key] = el }

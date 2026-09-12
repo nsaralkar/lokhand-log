@@ -19,7 +19,7 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
 ## Entry types (`users/<name>/workouts/YYYY-MM.jsonl`)
 
 ```json
-{"id":"a1b2c3d4e5f6","ts":"2026-07-04T09:12:31-04:00","type":"session_start","session_id":"9f8e7d6c5b4a","name":"Push Day","routine":"dumbbell_split","day":"Push Day"}
+{"id":"a1b2c3d4e5f6","ts":"2026-07-04T09:12:31-04:00","type":"session_start","session_id":"9f8e7d6c5b4a","name":"Push Day","routine":"dumbbell_split","day":"Push Day","planned":{"name":"Push Day","blocks":[{"exercises":["chest_press_db_incline"],"rounds":3}],"notes":"105 lb, one step up after 3x12"}}
 {"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"chest_press_db_incline","weight_lb":100,"reps":12,"rpe":8,"notes":"felt strong"}
 {"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"pullup","weight_lb":25.0,"reps":6}
 {"id":"...","ts":"...","type":"set","session_id":"9f8e7d6c5b4a","exercise_id":"peloton_cycling","duration_s":1860,"distance_mi":9.4}
@@ -44,6 +44,12 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
   and `distance_mi` are both set, `reps` is absent. Every other metric (`reps`,
   `duration`, `distance`) still carries exactly one of the three fields.
 - `warmup: true` excludes a set from volume/PR analytics.
+- **`session_start.planned` is a snapshot of the routine day** (blocks and
+  `notes`, verbatim) taken when the session starts, so the log keeps what was
+  planned and why even after the routine YAML is edited or the day deleted.
+  Live plan edits (swaps, added/removed sets) are not written back — the `set`
+  entries are the record of what was done, and planned-vs-done is derived on
+  read (`get_training_context`). Ad-hoc sessions have no `planned`.
 - **Session lifecycle:** `session_start` opens; `session_end` closes; an open
   session idle for >3h (configurable) gets an `auto_closed` end stamped at its
   last activity.
@@ -52,6 +58,12 @@ JSONL for logs (machine-append-friendly), YAML for things a human edits
   session order wherever the session is displayed. (Pre-note-feature sessions
   may still carry a single freeform comment on `session_end.notes` instead —
   that's rendered as-is, not migrated.)
+
+## Profile (`users/<name>/profile.md`)
+
+Optional freeform markdown the athlete maintains: injuries, equipment, logging
+conventions, anything an LLM should know before programming. Returned verbatim
+by `get_training_context`; the app itself doesn't read it.
 
 ## Metrics (`users/<name>/metrics/YYYY-MM.jsonl`)
 
@@ -132,6 +144,10 @@ days:
         rounds: 3
         rest_s: 150                            # one value overrides every phase
 ```
+
+A day may also carry `notes` (one string: the reasoning behind it, target
+loads). They show on the Session page's plan and are copied into
+`session_start.planned`.
 
 A block's required keys are `exercises` (the list, always) and — optionally —
 `rounds` (times through the list, default 3) and `label`. One exercise is a

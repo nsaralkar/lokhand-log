@@ -17,3 +17,4 @@ Layout:
   shared/routines/*.yaml      routines: each a program with multiple days of blocks
   users/<name>/workouts/      monthly JSONL: sets, cardio, session markers
   users/<name>/metrics/       monthly JSONL: weight, dimensions
+  users/<name>/profile.md     optional: injuries, equipment, conventions (for the LLM)

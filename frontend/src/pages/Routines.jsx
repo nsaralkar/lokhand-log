@@ -56,7 +56,7 @@ export default function Routines({ navigate, menuBtn, workoutClock }) {
   async function startDay() {
     const r = await post('/sessions/start', { routine: dialog.slug, day: dialog.day?.name })
     localStorage.setItem(RESUME_KEY, JSON.stringify({
-      session: { session_id: r.session_id, plan: r.plan, planIdx: 0, startedAt: Date.now() } }))
+      session: { session_id: r.session_id, plan: r.plan, notes: r.notes, planIdx: 0, startedAt: Date.now() } }))
     navigate('session')
   }
 

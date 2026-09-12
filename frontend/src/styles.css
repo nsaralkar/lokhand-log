@@ -305,6 +305,7 @@ nav.drawer button.on { color: var(--accent); background: var(--surface-2); }
 
 .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 12px; }
 .muted { color: var(--muted); }
+.plan-notes { margin: 6px 0 10px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
 .error { color: var(--danger); margin: 8px 0; }
 
 table { width: 100%; border-collapse: collapse; font-size: 14px; }

@@ -1,6 +1,7 @@
 """All HTTP endpoints. Thin layer: validate -> storage/analytics -> JSON."""
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -133,7 +134,7 @@ class SessionStartBody(BaseModel):
 @router.post("/sessions/start")
 def start_session(body: SessionStartBody, user=Depends(current_user)):
     _auto_close_stale(user["username"])
-    plan = None
+    plan = day = None
     name = body.name
     if body.routine:
         routine = load_routines().get(body.routine)
@@ -141,10 +142,15 @@ def start_session(body: SessionStartBody, user=Depends(current_user)):
         if day:
             plan = expand_day(day)
             name = name or day.get("name")
-    entry = SessionStart(name=name, routine=body.routine, day=body.day)
+    # Snapshot the day as it reads right now (blocks + notes): routine YAML gets
+    # edited and pruned later, but the log must still say what was planned and
+    # why. The JSON round-trip stringifies any YAML dates.
+    planned = json.loads(json.dumps(day, default=str)) if day else None
+    entry = SessionStart(name=name, routine=body.routine, day=body.day, planned=planned)
     storage.append_entry(config.workouts_dir(user["username"]),
                          entry.model_dump(exclude_none=True))
-    return {"session_id": entry.session_id, "plan": plan}
+    return {"session_id": entry.session_id, "plan": plan,
+            "notes": day.get("notes") if day else None}
 
 
 class SessionEndBody(BaseModel):

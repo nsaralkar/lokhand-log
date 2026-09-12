@@ -28,7 +28,8 @@ mcp = FastMCP(
     instructions=(
         "Fitness history for one athlete. All units are imperial: loads in lb, "
         "distances in mi, dimensions in in. Tonnage = load x reps, work sets only. "
-        "Use exercise ids from list_exercises when querying progression."
+        "Use exercise ids from list_exercises when querying progression. "
+        "Call get_training_context first when programming a workout."
     ),
 )
 
@@ -37,6 +38,16 @@ mcp = FastMCP(
 def list_exercises() -> list[dict]:
     """Canonical exercise library: ids, names, equipment, muscle groups."""
     return [e.model_dump() for e in load_exercises().values()]
+
+
+@mcp.tool()
+def get_training_context(days: int = 14) -> dict:
+    """START HERE when programming a workout. One read: the athlete profile
+    (injuries, equipment, logging conventions), recent body weight, and each
+    session from the last `days` days — the day as planned (snapshotted at
+    start, with its reasoning notes), what was actually done per exercise,
+    plan-vs-done set counts where they differ, and in-session notes."""
+    return analytics.training_context(USER, days)
 
 
 @mcp.tool()
