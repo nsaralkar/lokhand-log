@@ -168,7 +168,8 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
   border: 1px dashed var(--line); color: var(--muted);
   font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; }
 /* Amber pip flags unsaved notes tucked behind a collapsed header */
-.notes-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.notes-dot { display: inline-block; width: 6px; height: 6px; margin-left: 6px; vertical-align: middle;
+  border-radius: 50%; background: var(--accent); }
 .notes-area { margin-top: 8px; resize: vertical; min-height: 88px; line-height: 1.45; }
 
 /* Exercise picker: text field with a small + button to its right */
@@ -194,7 +195,7 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .expicker-row:last-child { border-bottom: none; }
 .expicker-row.on { color: var(--accent); }
 
-/* In-card subtabs (per-exercise Exercise / History / Info) */
+/* In-card subtabs (Exercise / History / Info per exercise, plus session Notes) */
 .subtabs { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--line);
   margin-bottom: 8px; }
 .subtabs button { min-height: 36px; border: none; border-radius: 0; background: none;
@@ -305,7 +306,7 @@ nav.drawer button.on { color: var(--accent); background: var(--surface-2); }
 
 .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 12px; }
 .muted { color: var(--muted); }
-.plan-notes { margin: 6px 0 10px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
+.plan-notes { margin: 4px 0 8px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
 .error { color: var(--danger); margin: 8px 0; }
 
 table { width: 100%; border-collapse: collapse; font-size: 14px; }

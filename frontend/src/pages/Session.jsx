@@ -35,7 +35,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [now, setNow] = useState(0)            // ticks every 500ms while a session is live
   const [setStartAt, setSetStartAt] = useState(0) // when the current set went active (count-up base)
   const [prog, setProg] = useState([])         // full progression for current exercise
-  const [exTab, setExTab] = useState('exercise') // 'exercise' | 'history' | 'info'
+  const [exTab, setExTab] = useState('exercise') // 'exercise' | 'history' | 'info' | 'notes'
   const [logged, setLogged] = useState([])
   const [editId, setEditId] = useState(null)   // logged set being edited
   const [editVal, setEditVal] = useState({ exercise_id: '', weight: '', kind: 'reps', qty: '', qty2: '', rpe: '' })
@@ -52,7 +52,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [planEditIdx, setPlanEditIdx] = useState(null) // plan row expanded inline for edit (choose-exercise/delete)
   const [dragIdx, setDragIdx] = useState(null)     // plan row index currently being dragged
   const [sessionNotes, setSessionNotes] = useState('') // draft text in the note composer
-  const [notesOpen, setNotesOpen] = useState(false)    // session-notes box expanded
   const [err, setErr] = useState('')
   const wakeLock = useRef(null)
   const hydrated = useRef(false)
@@ -112,7 +111,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         setQty2(saved.qty2 ?? null)
         setSetStartAt(saved.setStartAt ?? Date.now())
         setSessionNotes(saved.sessionNotes || '')
-        setNotesOpen(!!saved.notesOpen)
         autoPop.current = false  // don't clobber the restored entry with last-set values
       }
     } catch { /* corrupt/absent resume state — start fresh */ }
@@ -126,11 +124,11 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     if (!hydrated.current) return
     if (session) {
       localStorage.setItem(RESUME_KEY, JSON.stringify({
-        session, exText, weight, qty, qty2, setStartAt, sessionNotes, notesOpen }))
+        session, exText, weight, qty, qty2, setStartAt, sessionNotes }))
     } else {
       localStorage.removeItem(RESUME_KEY)
     }
-  }, [session, exText, weight, qty, qty2, setStartAt, sessionNotes, notesOpen])
+  }, [session, exText, weight, qty, qty2, setStartAt, sessionNotes])
 
   // The picker stores/searches by name; the canonical id is derived from it.
   const exercise = useMemo(
@@ -546,6 +544,9 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
           <button className={exTab === 'exercise' ? 'on' : ''} onClick={() => setExTab('exercise')}>Exercise</button>
           <button className={exTab === 'history' ? 'on' : ''} onClick={() => setExTab('history')}>History</button>
           <button className={exTab === 'info' ? 'on' : ''} onClick={() => setExTab('info')}>Info</button>
+          <button className={exTab === 'notes' ? 'on' : ''} onClick={() => setExTab('notes')}>
+            Notes{exTab !== 'notes' && sessionNotes.trim() && <span className="notes-dot" />}
+          </button>
         </div>
 
         {exTab === 'exercise' && (
@@ -655,6 +656,18 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
               </>
             )
         )}
+
+        {exTab === 'notes' && (
+          <>
+            {/* The routine day's notes — why it was programmed this way. */}
+            {session.notes && <p className="muted plan-notes">{session.notes}</p>}
+            <textarea className="notes-area no-autoselect" rows={4} value={sessionNotes}
+              placeholder="How did that go? Energy, aches, PRs…"
+              onChange={(e) => setSessionNotes(e.target.value)} />
+            <button className="primary" style={{ marginTop: 8 }}
+              disabled={!sessionNotes.trim()} onClick={postNote}>Post</button>
+          </>
+        )}
       </div>
 
       {upcoming.length > 0 && (
@@ -670,8 +683,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
               <span className="muted count-hint">+{upcoming.length - 1} more</span>
             )}
           </div>
-          {/* The routine day's notes — why it was programmed this way. */}
-          {!planCollapsed && session.notes && <p className="muted plan-notes">{session.notes}</p>}
           {shownUpcoming.map((p, i) => {
             const idx = session.planIdx + i
             const rowRef = (el) => { rowRefs.current[idx] = el; keyedRowRefs.current[p._key] = el }
@@ -823,23 +834,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
           ))}
         </div>
       )}
-
-      <div className="card">
-        <button className="section-toggle" aria-expanded={notesOpen}
-          onClick={() => setNotesOpen((o) => !o)}>
-          <span className={`chev ${notesOpen ? 'open' : ''}`}>▸</span> Session notes
-          {!notesOpen && sessionNotes.trim() && <span className="notes-dot" />}
-        </button>
-        {notesOpen && (
-          <>
-            <textarea className="notes-area no-autoselect" rows={4} value={sessionNotes}
-              placeholder="How did that go? Energy, aches, PRs…"
-              onChange={(e) => setSessionNotes(e.target.value)} />
-            <button className="primary" style={{ marginTop: 8 }}
-              disabled={!sessionNotes.trim()} onClick={postNote}>Post</button>
-          </>
-        )}
-      </div>
 
       <button className="big danger" onClick={() => setConfirmFinish(true)}>Finish workout</button>
 
