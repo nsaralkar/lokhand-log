@@ -35,7 +35,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [now, setNow] = useState(0)            // ticks every 500ms while a session is live
   const [setStartAt, setSetStartAt] = useState(0) // when the current set went active (count-up base)
   const [prog, setProg] = useState([])         // full progression for current exercise
-  const [exTab, setExTab] = useState('exercise') // 'exercise' | 'history' | 'info' | 'notes'
+  const [exTab, setExTab] = useState('exercise') // 'exercise' | 'history' | 'info'
   const [logged, setLogged] = useState([])
   const [editId, setEditId] = useState(null)   // logged set being edited
   const [editVal, setEditVal] = useState({ exercise_id: '', weight: '', kind: 'reps', qty: '', qty2: '', rpe: '' })
@@ -45,7 +45,9 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [confirmId, setConfirmId] = useState(null) // entry (set or note) pending delete
   const [confirmFinish, setConfirmFinish] = useState(false) // finish-workout pending confirmation
   const [planCollapsed, setPlanCollapsed] = useState(true) // hide the rows below the current one
+  const [planNotesCollapsed, setPlanNotesCollapsed] = useState(true) // hide the routine's session notes
   const [completedCollapsed, setCompletedCollapsed] = useState(true) // hide the logged-set rows
+  const [notesOpen, setNotesOpen] = useState(false) // note composer expanded, in the Completed card
   const [histCollapsed, setHistCollapsed] = useState(true) // History subtab: show only the last HIST_PREVIEW sessions
   const [pickerOpen, setPickerOpen] = useState(false) // main exercise-picker modal
   const [swapIdx, setSwapIdx] = useState(null)     // plan index being re-assigned (opens the picker modal)
@@ -278,7 +280,8 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     flipRects.current = {}; flipFrames.current = {}; keyedRowRefs.current = {}
     setSession({ session_id: r.session_id, plan: r.plan ? withKeys(r.plan) : r.plan,
       planIdx: 0, startedAt: Date.now() })
-    setLogged([]); setExTab('exercise'); setPlanCollapsed(true); setCompletedCollapsed(true); setSwapIdx(null)
+    setLogged([]); setExTab('exercise'); setPlanCollapsed(true); setPlanNotesCollapsed(true)
+    setCompletedCollapsed(true); setNotesOpen(false); setSwapIdx(null)
     setTimer(null); setSetStartAt(Date.now())
     setExText('')
   }
@@ -544,9 +547,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
           <button className={exTab === 'exercise' ? 'on' : ''} onClick={() => setExTab('exercise')}>Exercise</button>
           <button className={exTab === 'history' ? 'on' : ''} onClick={() => setExTab('history')}>History</button>
           <button className={exTab === 'info' ? 'on' : ''} onClick={() => setExTab('info')}>Info</button>
-          <button className={exTab === 'notes' ? 'on' : ''} onClick={() => setExTab('notes')}>
-            Notes{exTab !== 'notes' && sessionNotes.trim() && <span className="notes-dot" />}
-          </button>
         </div>
 
         {exTab === 'exercise' && (
@@ -656,18 +656,6 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
               </>
             )
         )}
-
-        {exTab === 'notes' && (
-          <>
-            {/* The routine day's notes — why it was programmed this way. */}
-            {session.notes && <p className="muted plan-notes">{session.notes}</p>}
-            <textarea className="notes-area no-autoselect" rows={4} value={sessionNotes}
-              placeholder="How did that go? Energy, aches, PRs…"
-              onChange={(e) => setSessionNotes(e.target.value)} />
-            <button className="primary" style={{ marginTop: 8 }}
-              disabled={!sessionNotes.trim()} onClick={postNote}>Post</button>
-          </>
-        )}
       </div>
 
       {upcoming.length > 0 && (
@@ -683,6 +671,15 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
               <span className="muted count-hint">+{upcoming.length - 1} more</span>
             )}
           </div>
+          {session.notes && (
+            <div className="plan-notes-wrap">
+              <button className="section-toggle" aria-expanded={!planNotesCollapsed}
+                onClick={() => setPlanNotesCollapsed((c) => !c)}>
+                <span className={`chev ${planNotesCollapsed ? '' : 'open'}`}>▸</span> Session notes
+              </button>
+              {!planNotesCollapsed && <p className="muted plan-notes">{session.notes}</p>}
+            </div>
+          )}
           {shownUpcoming.map((p, i) => {
             const idx = session.planIdx + i
             const rowRef = (el) => { rowRefs.current[idx] = el; keyedRowRefs.current[p._key] = el }
@@ -746,17 +743,30 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
         </div>
       )}
 
-      {logged.length > 0 && (
-        <div className="card completed">
+      <div className="card completed">
+        <div className="completed-head"
+          style={{ marginBottom: completedCollapsed && !notesOpen ? 0 : 6 }}>
           <button className="section-toggle" aria-expanded={!completedCollapsed}
-            style={{ marginBottom: completedCollapsed ? 0 : 6 }}
             onClick={() => setCompletedCollapsed((c) => !c)}>
             <span className={`chev ${completedCollapsed ? '' : 'open'}`}>▸</span>
             Completed <span className="muted count-hint">
               · {nSets} set{nSets === 1 ? '' : 's'}{nNotes ? `, ${nNotes} note${nNotes === 1 ? '' : 's'}` : ''}
             </span>
           </button>
-          {/* Sets and notes interleave in logged order. A logged set is fully
+          <button className="ghost note-add" onClick={() => setNotesOpen((o) => !o)}>
+            {notesOpen ? 'Cancel' : <>+ Note{sessionNotes.trim() && <span className="notes-dot" />}</>}
+          </button>
+        </div>
+        {notesOpen && (
+          <div className="setedit">
+            <textarea className="notes-area no-autoselect" rows={3} value={sessionNotes}
+              placeholder="How did that go? Energy, aches, PRs…"
+              onChange={(e) => setSessionNotes(e.target.value)} />
+            <button className="primary" disabled={!sessionNotes.trim()}
+              onClick={() => { postNote(); setNotesOpen(false) }}>Post</button>
+          </div>
+        )}
+        {/* Sets and notes interleave in logged order. A logged set is fully
               editable — exercise included — with the editor taking over the row
               so all four fields fit a 360px screen in one column; a note is
               just its text with an inline edit. */}
@@ -832,8 +842,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
               </div>
             </div>
           ))}
-        </div>
-      )}
+      </div>
 
       <button className="big danger" onClick={() => setConfirmFinish(true)}>Finish workout</button>
 
