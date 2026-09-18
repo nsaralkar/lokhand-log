@@ -175,8 +175,8 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .completed-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .note-add { flex: 0 0 auto; min-height: 32px; padding: 0 12px; font-size: 13px;
   text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid var(--line); }
-/* Routine-provided session notes, nested inside the Plan card and collapsed by default */
-.plan-notes-wrap { margin-top: 6px; }
+/* Routine-provided session notes, shown in a scrollable modal */
+.plan-notes-body { overflow: auto; margin: 0 0 12px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
 
 /* Exercise picker: text field with a small + button to its right */
 .ex-picker { display: flex; gap: 6px; }
@@ -312,7 +312,6 @@ nav.drawer button.on { color: var(--accent); background: var(--surface-2); }
 
 .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 12px; }
 .muted { color: var(--muted); }
-.plan-notes { margin: 4px 0 8px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
 .error { color: var(--danger); margin: 8px 0; }
 
 table { width: 100%; border-collapse: collapse; font-size: 14px; }

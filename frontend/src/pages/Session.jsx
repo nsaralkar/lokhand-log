@@ -45,7 +45,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
   const [confirmId, setConfirmId] = useState(null) // entry (set or note) pending delete
   const [confirmFinish, setConfirmFinish] = useState(false) // finish-workout pending confirmation
   const [planCollapsed, setPlanCollapsed] = useState(true) // hide the rows below the current one
-  const [planNotesCollapsed, setPlanNotesCollapsed] = useState(true) // hide the routine's session notes
+  const [planNotesOpen, setPlanNotesOpen] = useState(false) // routine's session notes modal
   const [completedCollapsed, setCompletedCollapsed] = useState(true) // hide the logged-set rows
   const [notesOpen, setNotesOpen] = useState(false) // note composer expanded, in the Completed card
   const [histCollapsed, setHistCollapsed] = useState(true) // History subtab: show only the last HIST_PREVIEW sessions
@@ -280,7 +280,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
     flipRects.current = {}; flipFrames.current = {}; keyedRowRefs.current = {}
     setSession({ session_id: r.session_id, plan: r.plan ? withKeys(r.plan) : r.plan,
       planIdx: 0, startedAt: Date.now() })
-    setLogged([]); setExTab('exercise'); setPlanCollapsed(true); setPlanNotesCollapsed(true)
+    setLogged([]); setExTab('exercise'); setPlanCollapsed(true); setPlanNotesOpen(false)
     setCompletedCollapsed(true); setNotesOpen(false); setSwapIdx(null)
     setTimer(null); setSetStartAt(Date.now())
     setExText('')
@@ -670,14 +670,18 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
             {upcoming.length > 1 && planCollapsed && (
               <span className="muted count-hint">+{upcoming.length - 1} more</span>
             )}
+            {session.notes && (
+              <button className="ghost note-add" style={{ marginLeft: 'auto' }}
+                onClick={() => setPlanNotesOpen(true)}>Notes</button>
+            )}
           </div>
-          {session.notes && (
-            <div className="plan-notes-wrap">
-              <button className="section-toggle" aria-expanded={!planNotesCollapsed}
-                onClick={() => setPlanNotesCollapsed((c) => !c)}>
-                <span className={`chev ${planNotesCollapsed ? '' : 'open'}`}>▸</span> Session notes
-              </button>
-              {!planNotesCollapsed && <p className="muted plan-notes">{session.notes}</p>}
+          {planNotesOpen && (
+            <div className="modal-scrim" onClick={() => setPlanNotesOpen(false)}>
+              <div className="modal card preview" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+                <h3 style={{ marginTop: 0 }}>Session notes</h3>
+                <p className="plan-notes-body">{session.notes}</p>
+                <button className="ghost" onClick={() => setPlanNotesOpen(false)}>Close</button>
+              </div>
             </div>
           )}
           {shownUpcoming.map((p, i) => {
@@ -754,7 +758,7 @@ export default function Session({ user, navigate, menuBtn, workoutClock }) {
             </span>
           </button>
           <button className="ghost note-add" onClick={() => setNotesOpen((o) => !o)}>
-            {notesOpen ? 'Cancel' : <>+ Note{sessionNotes.trim() && <span className="notes-dot" />}</>}
+            {notesOpen ? 'Cancel' : <>+ Post{sessionNotes.trim() && <span className="notes-dot" />}</>}
           </button>
         </div>
         {notesOpen && (
